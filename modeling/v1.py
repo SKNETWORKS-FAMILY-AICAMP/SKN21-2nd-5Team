@@ -49,7 +49,7 @@ def preprocess_data(df):
     df_proc = df.copy()
     # 필요없는 컬럼 제거
     useless_col = ['days_in_waiting_list', 'arrival_date_year', 'assigned_room_type', 'booking_changes',
-               'reservation_status', 'country']
+               'reservation_status', 'country', 'reservation_status_date']
 
     df_proc.drop(useless_col, axis = 1, inplace = True)
     
@@ -57,32 +57,44 @@ def preprocess_data(df):
     adr_99 = df_proc['adr'].quantile(0.99)
     df_proc['adr'] = np.where(df_proc['adr'] > adr_99, adr_99, df_proc['adr'])
     
+    # === Feature Engineering ===
+    # 1. has_special_requests: 특별 요청 있음 여부
+    df_proc['has_special_requests'] = (df_proc['total_of_special_requests'] > 0).astype(int)
+    
+    # 2. is_planned: 사전 계획 예약 (90일 이상)
+    df_proc['is_planned'] = (df_proc['lead_time'] >= 90).astype(int)
+    
+    # 3. is_last_minute: 당일/직전 예약 (3일 이내)
+    df_proc['is_last_minute'] = (df_proc['lead_time'] <= 3).astype(int)
+    
+    # 4. needs_parking: 주차 필요 여부
+    df_proc['needs_parking'] = (df_proc['required_car_parking_spaces'] > 0).astype(int)
+    
+    print(f"\n✅ Feature Engineering 완료: 4개의 새로운 피처 추가")
+    print(f"   - has_special_requests, is_planned, is_last_minute, needs_parking")
 
     
     num_cols = df_proc.select_dtypes(include=[np.number]).columns
     cat_cols = df_proc.select_dtypes(include=['object']).columns
     
-    # cat_df = df_proc[cat_cols]
-    df_proc['reservation_status_date'] = pd.to_datetime(df_proc['reservation_status_date'])
-
-    df_proc['date_int'] = (df_proc['reservation_status_date'].dt.year * 10000 + 
-                           df_proc['reservation_status_date'].dt.month * 100 + 
-                           df_proc['reservation_status_date'].dt.day)
-
-    df_proc.drop(['reservation_status_date'], axis=1, inplace=True, errors='ignore')
-    df_proc.drop(['arrival_date_month'], axis=1, inplace=True, errors='ignore')
-
-    num_cols = df_proc.select_dtypes(include=[np.number]).columns
-    cat_cols = df_proc.select_dtypes(include=['object']).columns
     # 숫자형 결측치 처리: 0으로 대체 (children, adr 등)
     df_proc[num_cols] = df_proc[num_cols].fillna(0)
     
     # 범주형 결측치 처리: 'Unknown'으로 대체 (country, meal 등)
     df_proc[cat_cols] = df_proc[cat_cols].fillna('Unknown')
     
+    # 원-핫 인코딩 전 컬럼 출력
+    print(f"\n원-핫 인코딩 전 컬럼 ({len(df_proc.columns)}개):")
+    print(df_proc.columns.tolist())
+    print(f"\n원-핫 인코딩 대상 범주형 컬럼 ({len(cat_cols)}개):")
+    print(cat_cols.tolist())
+    
     # 4. 범주형 변수 인코딩 (One-Hot Encoding)
     cat_cols_for_ohe = df_proc.select_dtypes(include=['object', 'category']).columns
     df_proc = pd.get_dummies(df_proc, columns=cat_cols_for_ohe, drop_first=True)
+    
+    print(f"\n원-핫 인코딩 후 컬럼 ({len(df_proc.columns)}개):")
+    print(df_proc.columns.tolist())
     
     return df_proc
 
@@ -107,21 +119,13 @@ def train_model(df):
     print(f"\nTraining set size: {X_train.shape}")
     print(f"Test set size: {X_test.shape}")
     
-
-    # # 4. XGBoost 모델 정의 및 학습
-    # model = xgb.XGBClassifier(
-    #     n_estimators=100,
-    #     learning_rate=0.1,
-    #     max_depth=6,
-    #     random_state=42,
-    #     use_label_encoder=False,
-    #     eval_metric='logloss',
-    #     n_jobs=-1
-    # )
+    # 학습에 사용되는 컬럼 출력
+    print(f"\n학습에 사용되는 컬럼 ({len(X_train.columns)}개):")
+    print(X_train.columns.tolist())
 
     from catboost import CatBoostClassifier
 
-    cat = CatBoostClassifier(iterations=100)
+    cat = CatBoostClassifier(iterations=100, verbose=0)
     cat.fit(X_train, y_train)
     y_pred_cat = cat.predict(X_test)
     acc_cat = accuracy_score(y_test,y_pred_cat)
@@ -132,21 +136,22 @@ def train_model(df):
     print("conf :", conf)
     print("report :", clf_report)
     
-    # print(f"\nStarting training..")
-    # model.fit(X_train, y_train)
-    # print("Training completed.")
+    # 모델 저장
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    model_dir = os.path.join(current_dir, '..', 'model')
+    os.makedirs(model_dir, exist_ok=True)
+    model_path = os.path.join(model_dir, 'catboost_model.cbm')
+    cat.save_model(model_path)
+    print(f"\n모델 저장 완료: {model_path}")
     
-    # # 5. 예측 및 평가
-    # y_pred = model.predict(X_test)
-    # accuracy = accuracy_score(y_test, y_pred)
+    # 학습에 사용한 feature 컬럼 저장
+    import pickle
+    feature_cols_path = os.path.join(model_dir, 'feature_columns.pkl')
+    with open(feature_cols_path, 'wb') as f:
+        pickle.dump(X_train.columns.tolist(), f)
+    print(f"Feature 컬럼 저장 완료: {feature_cols_path}")
     
-    # print("-" * 40)
-    # print(f"Model Accuracy: {accuracy:.4f} (scale_pos_weight applied)")
-    # print("-" * 40)
-    # print("Classification Report:\n")
-    # print(classification_report(y_test, y_pred))
-    
-    # return model
+    return cat
 
 if __name__ == "__main__":
     # 1. 데이터 로드
@@ -159,5 +164,5 @@ if __name__ == "__main__":
         print(f"Preprocessing completed. Final shape: {processed_data.shape}")
         
         # 3. 학습 및 평가
-        # support 값은 train_model 내부에서 y_train을 사용하여 계산하므로 외부에서 하드코딩하지 않습니다.
         model = train_model(processed_data)
+        print("\n학습 및 모델 저장이 완료되었습니다.")
