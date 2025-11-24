@@ -2,7 +2,12 @@ import os
 import pandas as pd
 import numpy as np
 import pickle
-from catboost import CatBoostClassifier
+import lightgbm as lgb
+import warnings
+
+# joblib 경고 무시
+warnings.filterwarnings('ignore', category=UserWarning)
+os.environ['LOKY_MAX_CPU_COUNT'] = '4'  # CPU 코어 수 설정
 
 def load_test_data():
     """
@@ -78,10 +83,10 @@ def preprocess_test_data(df, adr_99=None):
 
 def load_model():
     """
-    저장된 CatBoost 모델을 로드합니다.
+    저장된 LightGBM 모델을 로드합니다.
     """
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(current_dir, '..', 'model', 'catboost_model.cbm')
+    model_path = os.path.join(current_dir, '..', 'model', 'lgbm_model.txt')
     model_path = os.path.normpath(model_path)
     
     if not os.path.exists(model_path):
@@ -90,8 +95,7 @@ def load_model():
         return None
     
     try:
-        model = CatBoostClassifier()
-        model.load_model(model_path)
+        model = lgb.Booster(model_file=model_path)
         print(f"모델 로드 완료: {model_path}")
         return model
     except Exception as e:

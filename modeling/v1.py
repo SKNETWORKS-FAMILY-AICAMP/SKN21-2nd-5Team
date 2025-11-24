@@ -1,7 +1,12 @@
 import os
 import pandas as pd
 import numpy as np
-import xgboost as xgb
+import lightgbm as lgb
+import warnings
+
+# joblib 경고 무시
+warnings.filterwarnings('ignore', category=UserWarning)
+
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 pd.set_option('display.max_columns', None)  #
@@ -47,9 +52,29 @@ def preprocess_data(df):
     - One-Hot Encoding
     """
     df_proc = df.copy()
-    # 필요없는 컬럼 제거
-    useless_col = ['days_in_waiting_list', 'arrival_date_year', 'assigned_room_type', 'booking_changes',
-               'reservation_status', 'country', 'reservation_status_date']
+    
+    # === 데이터 클리닝 (practice_sj2 방식) ===
+    # 1. country 결측치 처리
+    mfc = df_proc['country'].mode()[0]
+    df_proc['country'] = df_proc['country'].fillna(mfc)
+    
+    # 2. children 결측치 처리
+    df_proc['children'] = df_proc['children'].fillna(0).astype(int)
+    
+    # 3. ADR 이상치 제거 (5000 초과, 음수)
+    df_proc = df_proc[df_proc['adr'] <= 5000].copy()
+    df_proc['adr'] = df_proc['adr'].apply(lambda x: x if x >= 0 else 0)
+    
+    # 4. 투숙객 0명 제거 (비정상 데이터)
+    df_proc['total_guests'] = df_proc['adults'] + df_proc['children'] + df_proc['babies']
+    df_proc = df_proc[df_proc['total_guests'] > 0].copy()
+    df_proc = df_proc.drop('total_guests', axis=1)
+    
+    print(f"\n✅ 데이터 클리닝 완료. Shape: {df_proc.shape}")
+    
+    # 필요없는 컬럼 제거 (booking_changes는 유지!)
+    useless_col = ['days_in_waiting_list', 'arrival_date_year', 'assigned_room_type',
+               'reservation_status', 'reservation_status_date']
 
     df_proc.drop(useless_col, axis = 1, inplace = True)
     
@@ -58,21 +83,32 @@ def preprocess_data(df):
     df_proc['adr'] = np.where(df_proc['adr'] > adr_99, adr_99, df_proc['adr'])
     
     # === Feature Engineering ===
-    # 1. has_special_requests: 특별 요청 있음 여부
+    # 1. is_family: 가족 여행 여부
+    df_proc['is_family'] = ((df_proc['adults'] >= 1) & (df_proc['children'] + df_proc['babies'] >= 1)).astype(int)
+    
+    # 2. lead_time_group: 리드타임 그룹화
+    bins = [0, 30, 90, 180, 365, df_proc['lead_time'].max() + 1]
+    labels = ['<1month', '1-3months', '3-6months', '6-12months', '>=12months']
+    df_proc['lead_time_group'] = pd.cut(
+        df_proc['lead_time'],
+        bins=bins,
+        labels=labels,
+        right=False,
+        include_lowest=True
+    )
+    
+    # 3. country_grouped: 국가 top10 + Others
+    top_10_countries = df_proc['country'].value_counts().nlargest(10).index
+    df_proc['country_grouped'] = df_proc['country'].apply(lambda x: x if x in top_10_countries else 'Others')
+    df_proc.drop('country', axis=1, inplace=True)
+    
+    # 4. has_special_requests: 특별 요청 있음 여부
     df_proc['has_special_requests'] = (df_proc['total_of_special_requests'] > 0).astype(int)
     
-    # 2. is_planned: 사전 계획 예약 (90일 이상)
-    df_proc['is_planned'] = (df_proc['lead_time'] >= 90).astype(int)
-    
-    # 3. is_last_minute: 당일/직전 예약 (3일 이내)
-    df_proc['is_last_minute'] = (df_proc['lead_time'] <= 3).astype(int)
-    
-    # 4. needs_parking: 주차 필요 여부
+    # 5. needs_parking: 주차 필요 여부
     df_proc['needs_parking'] = (df_proc['required_car_parking_spaces'] > 0).astype(int)
     
-    print(f"\n✅ Feature Engineering 완료: 4개의 새로운 피처 추가")
-    print(f"   - has_special_requests, is_planned, is_last_minute, needs_parking")
-
+    print(f"\n✅ Feature Engineering 완료: 5개의 새로운 피처 추가")
     
     num_cols = df_proc.select_dtypes(include=[np.number]).columns
     cat_cols = df_proc.select_dtypes(include=['object']).columns
@@ -123,25 +159,36 @@ def train_model(df):
     print(f"\n학습에 사용되는 컬럼 ({len(X_train.columns)}개):")
     print(X_train.columns.tolist())
 
-    from catboost import CatBoostClassifier
+    # LightGBM 모델 학습 (practice_sj2와 동일 설정)
+    lgbm = lgb.LGBMClassifier(
+        random_state=42,
+        verbose=-1
+    )
+    lgbm.fit(X_train, y_train)
+    y_pred = lgbm.predict(X_test)
+    y_pred_proba = lgbm.predict_proba(X_test)[:, 1]
+    
+    acc = accuracy_score(y_test, y_pred)
+    conf = confusion_matrix(y_test, y_pred)
+    clf_report = classification_report(y_test, y_pred)
 
-    cat = CatBoostClassifier(iterations=100, verbose=0)
-    cat.fit(X_train, y_train)
-    y_pred_cat = cat.predict(X_test)
-    acc_cat = accuracy_score(y_test,y_pred_cat)
-    conf = confusion_matrix(y_test, y_pred_cat)
-    clf_report = classification_report(y_test, y_pred_cat)
-
-    print("accuracy : ", acc_cat)
+    print("accuracy : ", acc)
     print("conf :", conf)
     print("report :", clf_report)
+    
+    # AUC-ROC, Recall, F1-Score 추가 출력
+    from sklearn.metrics import roc_auc_score, recall_score, f1_score
+    print(f"\n=== 추가 성능 지표 ===")
+    print(f"AUC-ROC: {roc_auc_score(y_test, y_pred_proba):.4f}")
+    print(f"Recall: {recall_score(y_test, y_pred):.4f}")
+    print(f"F1-Score: {f1_score(y_test, y_pred):.4f}")
     
     # 모델 저장
     current_dir = os.path.dirname(os.path.abspath(__file__))
     model_dir = os.path.join(current_dir, '..', 'model')
     os.makedirs(model_dir, exist_ok=True)
-    model_path = os.path.join(model_dir, 'catboost_model.cbm')
-    cat.save_model(model_path)
+    model_path = os.path.join(model_dir, 'lgbm_model.txt')
+    lgbm.booster_.save_model(model_path)
     print(f"\n모델 저장 완료: {model_path}")
     
     # 학습에 사용한 feature 컬럼 저장
@@ -151,7 +198,7 @@ def train_model(df):
         pickle.dump(X_train.columns.tolist(), f)
     print(f"Feature 컬럼 저장 완료: {feature_cols_path}")
     
-    return cat
+    return lgbm
 
 if __name__ == "__main__":
     # 1. 데이터 로드
