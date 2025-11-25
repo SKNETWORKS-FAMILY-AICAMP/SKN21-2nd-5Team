@@ -28,24 +28,22 @@ with st.sidebar:
 
 def visualize_customer_data(customer_row, customer_index):
     """선택된 고객 데이터 시각화하는 함수"""
-    
+
 # 기본 정보
     st.markdown(f"**기본 정보**")
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("고객 ID", customer_row['name'])
-        st.metric("총 인원", f"{int(customer_row['adults']) + int(customer_row['children']) + int(customer_row['babies'])}") 
-        st.write(f"(성인: {int(customer_row['adults'])}, 어린이: {int(customer_row['children'])}, 유아: {int(customer_row['babies'])})")
     with col2:
         st.metric("호텔 타입", customer_row['hotel'])
-        st.metric("투숙일까지", f"D-{customer_row['lead_time']}")
+        st.metric("총 인원", f"{int(customer_row['adults']) + int(customer_row['children']) + int(customer_row['babies'])}") 
+        st.write(f"(성인 {int(customer_row['adults'])}, 어린이 {int(customer_row['children'])}, 유아 {int(customer_row['babies'])})")
     with col3:
-        # 날짜 컬럼들을 직접 f-string으로 형식화
         st.metric("방문예정일", f"{int(customer_row['arrival_date_year'])}-{int(customer_row['arrival_date_month']):02d}-{int(customer_row['arrival_date_day_of_month']):02d}")
         # st.metric("룸 타입", customer_row['reserved_room_type'])
         st.metric("요금", f"${(customer_row['adr']) * (int(customer_row['stays_in_weekend_nights']) + int(customer_row['stays_in_week_nights'])):.2f}")
         st.write(f"(${customer_row['adr']:.2f} x {int(customer_row['stays_in_weekend_nights']) + int(customer_row['stays_in_week_nights'])}박)")
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown(f"**부가 정보**")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -55,6 +53,7 @@ def visualize_customer_data(customer_row, customer_index):
     with col3:
         st.write(f"**Deposit Type**: {customer_row['deposit_type']}")
     st.markdown("---")
+
 # 고객 요청사항
     st.markdown(f"**고객 요청사항**")
     col1, col2, col3 = st.columns(3)
@@ -69,18 +68,29 @@ def visualize_customer_data(customer_row, customer_index):
         st.write("- 특별 요청 사항 내용 표시")
     st.markdown("---")
     
-
+# 위험도 분류 및 색상 함수
     
-    # 예측 결과 추가
+    # 위험도 표시
     st.markdown("---")
-    predict_customer_cancel(customer_row, customer_index)
+    col1, col2 = st.columns(2)
     
+
+def classify_risk(prob):
+    """취소 확률에 따른 위험도 분류 함수"""
+    if prob < 0.3:
+        return "🟢 안전군", "green"
+    elif prob < 0.7:
+        return "🟡 주의군", "orange"
+    else:
+        return "🔴 위험군", "red"
+
+
 def predict_customer_cancel(customer_row, customer_index):
     """선택된 고객의 취소 예측 결과를 시각화하는 함수"""
     
     # 고객 ID로 예측 결과 찾기
     customer_id = customer_row['name']
-    prediction_row = predictions_df[predictions_df['client_id'] == customer_id]
+    prediction_row = predictions_df[predictions_df['name'] == customer_id]
     
     if prediction_row.empty:
         st.error(f"❌ {customer_id} 고객의 예측 결과를 찾을 수 없습니다.")
@@ -91,68 +101,15 @@ def predict_customer_cancel(customer_row, customer_index):
     prob_no_cancel = prediction_row.iloc[0]['probability_no_cancel']
     prob_cancel = prediction_row.iloc[0]['probability_cancel']
     
-    # 메인 메트릭 표시
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric(
-            label="🎯 취소 예측",
-            value="취소" if prediction == 1 else "유지",
-            delta="위험" if prediction == 1 else "안전"
-        )
-    
-    with col2:
-        st.metric(
-            label="📈 취소 확률",
-            value=f"{prob_cancel*100:.2f}%",
-            delta=f"{(prob_cancel - 0.5)*100:.2f}%"
-        )
-    
-    with col3:
-        st.metric(
-            label="📉 유지 확률",
-            value=f"{prob_no_cancel*100:.2f}%",
-            delta=f"{(prob_no_cancel - 0.5)*100:.2f}%"
-        )
-    
-    # 위험도 분류 및 색상 함수
-    def classify_risk(prob):
-        if prob < 0.3:
-            return "🟢 안전군", "green"
-        elif prob < 0.7:
-            return "🟡 주의군", "orange"
-        else:
-            return "🔴 위험군", "red"
-    
+    # 위험도 분류
     risk_level, risk_color = classify_risk(prob_cancel)
-    
-    # 위험도 표시
-    st.markdown("---")
+    # 메인 메트릭 표시
+    st.markdown(f"### 위험도 분류: {risk_level}")
     col1, col2 = st.columns(2)
-    
     with col1:
-        st.markdown(f"### 위험도 분류: {risk_level}")
-        
-        # 확률 바 차트
-        fig_bar = go.Figure(data=[
-            go.Bar(
-                x=['유지 확률', '취소 확률'],
-                y=[prob_no_cancel*100, prob_cancel*100],
-                marker_color=['lightblue', 'lightcoral'],
-                text=[f"{prob_no_cancel*100:.1f}%", f"{prob_cancel*100:.1f}%"],
-                textposition='auto'
-            )
-        ])
-        
-        fig_bar.update_layout(
-            title="예측 확률 비교",
-            yaxis_title="확률 (%)",
-            height=300,
-            showlegend=False
-        )
-        
-        st.plotly_chart(fig_bar, use_container_width=True)
-    
+        st.metric(label="📊 취소 예측", value="취소" if prediction == 1 else "유지")
+        st.metric(label="🔴 **취소** 확률", value=f"{prob_cancel*100:.2f}%")
+        st.metric(label="🟢 **유지** 확률", value=f"{prob_no_cancel*100:.2f}%")
     with col2:
         # 게이지 차트
         fig_gauge = go.Figure(go.Indicator(
@@ -176,9 +133,28 @@ def predict_customer_cancel(customer_row, customer_index):
             }
             }
         ))
-        
         fig_gauge.update_layout(height=300)
         st.plotly_chart(fig_gauge, use_container_width=True)
+        
+        # 바 차트
+        fig_bar = go.Figure(data=[
+            go.Bar(
+                x=['유지 확률', '취소 확률'],
+                y=[prob_no_cancel*100, prob_cancel*100],
+                marker_color=['lightblue', 'lightcoral'],
+                text=[f"{prob_no_cancel*100:.1f}%", f"{prob_cancel*100:.1f}%"],
+                textposition='auto'
+            )
+        ])
+        fig_bar.update_layout(
+            title="예측 확률 비교",
+            yaxis_title="확률 (%)",
+            height=300,
+            showlegend=False
+        )
+        
+        st.plotly_chart(fig_bar, use_container_width=True)
+        
     
     # 추천 액션
     st.markdown("---")
@@ -270,4 +246,5 @@ else:
         
         st.markdown("---")
         visualize_customer_data(selected_row, selected_index)
+        predict_customer_cancel(selected_row, selected_index)
 
