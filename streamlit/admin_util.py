@@ -5,23 +5,27 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 
+# st.space를 대체할 헬퍼 함수 정의
+def _add_vertical_space(pixels):
+    st.markdown(f"<div style='height: {pixels}px;'></div>", unsafe_allow_html=True)
 
 def visualize_customer_data(customer_row, customer_index):
     """선택된 고객 데이터 시각화하는 함수"""
     st.subheader(f"🔍 고객 정보")
-    st.space(size=5)
+    _add_vertical_space(25) # st.space(size=5) 대체 (5 * 5px = 25px)
+
 # 기본 정보
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("고객 ID", customer_row['name'])
-        st.space(size=3)
+        _add_vertical_space(15) # st.space(size=3) 대체 (3 * 5px = 15px)
 
     with col2:
         st.metric("호텔 타입", customer_row['hotel'])
-        st.metric("총 인원", f"{int(customer_row['adults']) + int(customer_row['children']) + int(customer_row['babies'])}") 
-        st.write(f"(성인 {int(customer_row['adults'])}, 어린이 {int(customer_row['children'])}, 유아 {int(customer_row['babies'])})")
+        st.metric("총 인원", f"{int(customer_row['adults']) + int(customer_row['children']) + int(customer_row['babies'])}")
+        st.write(f"(성인 {int(customer_row['adults'])}, 어린이 {int(customer_row['children'])}, 유아 {int(customer_row['babies'])}명)")
         st.metric("유통 채널", f"{customer_row['distribution_channel']}")
-        st.space(size=3)
+        _add_vertical_space(15) # st.space(size=3) 대체 (3 * 5px = 15px)
 
     with col3:
         st.metric("방문예정일", f"{int(customer_row['arrival_date_year'])}-{int(customer_row['arrival_date_month']):02d}-{int(customer_row['arrival_date_day_of_month']):02d}")
@@ -29,23 +33,11 @@ def visualize_customer_data(customer_row, customer_index):
         st.metric("요금", f"${(customer_row['adr']) * (int(customer_row['stays_in_weekend_nights']) + int(customer_row['stays_in_week_nights'])):.2f}")
         st.write(f"(${customer_row['adr']:.2f} x {int(customer_row['stays_in_weekend_nights']) + int(customer_row['stays_in_week_nights'])}박)")
         st.metric("보증금", f"{customer_row['deposit_type']}")
-        st.space(size=3)
+        _add_vertical_space(15) # st.space(size=3) 대체 (3 * 5px = 15px)
     st.markdown("<br>", unsafe_allow_html=True)
-    st.space(size=5)
-
-# 고객 요청사항
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("조식", customer_row['meal'])
-    with col2:
-        st.metric("주차 공간", customer_row['required_car_parking_spaces'])
-    with col3:
-        st.metric("특별 요청", f"{customer_row['total_of_special_requests']}개")
-    st.markdown("<br>", unsafe_allow_html=True)
-    if customer_row['total_of_special_requests'] > 0:
-        st.write("- 특별 요청 사항 내용 표시")
+    _add_vertical_space(25) # st.space(size=5) 대체 (5 * 5px = 25px)
     st.markdown("---")
-    
+
 # 위험도 분류 및 색상 함수
 def classify_risk(prob):
     """취소 확률에 따른 위험도 분류 함수"""
@@ -61,37 +53,41 @@ def get_customer_prediction(customer_row, predictions_df):
     """고객의 취소 예측 결과를 추출하는 함수"""
     customer_id = customer_row['name']
     prediction_row = predictions_df[predictions_df['name'] == customer_id]
-    
+
     if prediction_row.empty:
         return None
-    
+
+    prediction = int(prediction_row.iloc[0]['prediction'])
+    prob_no_cancel = float(prediction_row.iloc[0]['probability_no_cancel'])
+    prob_cancel = float(prediction_row.iloc[0]['probability_cancel'])
+
     return {
         'customer_id': customer_id,
-        'prediction': int(prediction_row.iloc[0]['prediction']),
-        'prob_no_cancel': prediction_row.iloc[0]['probability_no_cancel'],
-        'prob_cancel': prediction_row.iloc[0]['probability_cancel']
+        'prediction': prediction,
+        'prob_no_cancel': prob_no_cancel,
+        'prob_cancel': prob_cancel
     }
 
 
 def display_prediction_results(prediction_data, predictions_df):
     """예측 결과를 시각화하는 함수"""
     st.subheader(f"⌛️ 예약 취소 예측")
-    st.space(size=5)
+    _add_vertical_space(25) # st.space(size=5) 대체 (5 * 5px = 25px)
 
     if prediction_data is None:
         st.error(f"❌ 고객의 예측 결과를 찾을 수 없습니다.")
         return
-    
+
     prediction = prediction_data['prediction']
     prob_no_cancel = prediction_data['prob_no_cancel']
     prob_cancel = prediction_data['prob_cancel']
-    
+
     # 위험도 분류
     risk_level, risk_color = classify_risk(prob_cancel)
-    
+
     # 메인 메트릭 표시
     st.markdown(f"#### {risk_level}")
-    st.space(size=5)
+    _add_vertical_space(25) # st.space(size=5) 대체 (5 * 5px = 25px)
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -100,7 +96,7 @@ def display_prediction_results(prediction_data, predictions_df):
         st.metric(label="🔴 **취소** 확률", value=f"{prob_cancel*100:.2f}%")
     with col3:
         st.metric(label="🟢 **유지** 확률", value=f"{prob_no_cancel*100:.2f}%")
-    
+
     col4, col5 = st.columns(2)
     with col4:
         # 원형 차트
@@ -117,30 +113,32 @@ def display_prediction_results(prediction_data, predictions_df):
             height=350,
             showlegend=False
         )
-        st.plotly_chart(fig_bar, width='stretch')
+        st.plotly_chart(fig_bar, use_container_width=True)
     with col5:
         # 게이지 차트
         fig_gauge = go.Figure(go.Indicator(
-            mode = "gauge+number+delta",
+            mode = "gauge+number",
             value = prob_cancel * 100,
             domain = {'x': [0, 1], 'y': [0, 1]},
             gauge = {'axis': {'range': [None, 100]},
                      'bar': {'color': risk_color},
                      'steps': [{'range': [0, 30], 'color': "#90EE90"},
                                {'range': [30, 70], 'color': "#FFD700"},
-                               {'range': [70, 100], 'color': "#F08080"},
-                               ]}))
-        
+                               {'range': [70, 100], 'color': "#F08080"}
+                               ],
+                     'threshold' : {'line': {'color': "black", 'width': 4}, 'thickness': 0.75, 'value': 50}
+                    }))
+
         fig_gauge.update_layout(height=300)
-        st.plotly_chart(fig_gauge, width='stretch')
+        st.plotly_chart(fig_gauge, use_container_width=True)
     st.markdown("---")
 
-    # 추천 액션 (빈 컬럼으로 간격 조정)
-    col1, spacer, col2 = st.columns([3, 0.5, 2])  # 0.5 너비의 간격 컬럼 추가
+    # 추천 액션
+    col1, spacer, col2 = st.columns([3, 0.5, 2])
 
     with col1:
         st.markdown("#### 💡 추천 액션")
-        st.space(size=5)
+        _add_vertical_space(25) # st.space(size=5) 대체 (5 * 5px = 25px)
         if prob_cancel < 0.3:
             st.success("✅ **안전한 예약**")
             st.write("- 특별 조치 필요 없음")
@@ -156,19 +154,26 @@ def display_prediction_results(prediction_data, predictions_df):
             st.write("- 개인화된 서비스 제공 및 할인 혜택 고려")
             st.write("- 예약 재확인 및 고객 니즈 파악을 위한 직접 연락 권장")
             st.write("- 룸 업그레이드 또는 추가 어메니티 제공 검토")
-    with col2: 
+    with col2:
         st.markdown("#### 📊 유사 고객 비교")
-        st.space(size=5)
-        avg_cancel_prob = predictions_df['probability_cancel'].mean()
-        percentile_rank = (predictions_df['probability_cancel'] <= prob_cancel).mean() * 100
-        st.metric(
-            "전체 평균 취소 확률",
-            f"{avg_cancel_prob*100:.2f}%",
-            f"{(prob_cancel - avg_cancel_prob)*100:+.2f}%",
-            delta_color="inverse"
-        )
-        st.metric(
-            "위험도 순위",
-            f"상위 {100-percentile_rank:.1f}%",
-            delta_color="inverse"
-        )
+        _add_vertical_space(25) # st.space(size=5) 대체 (5 * 5px = 25px)
+        if not predictions_df.empty and 'probability_cancel' in predictions_df.columns:
+            avg_cancel_prob = predictions_df['probability_cancel'].mean()
+            if len(predictions_df) > 1:
+                percentile_rank = (predictions_df['probability_cancel'] < prob_cancel).sum() / (len(predictions_df) - 1) * 100 if (len(predictions_df) -1) > 0 else 0
+            else:
+                percentile_rank = 100 if prob_cancel > 0 else 0
+
+            st.metric(
+                "전체 평균 취소 확률",
+                f"{avg_cancel_prob*100:.2f}%",
+                f"{(prob_cancel - avg_cancel_prob)*100:+.2f}%",
+                delta_color="inverse"
+            )
+            st.metric(
+                "위험도 순위",
+                f"하위 {percentile_rank:.1f}%",
+                delta_color="inverse"
+            )
+        else:
+            st.warning("예측 데이터프레임이 비어있거나 'probability_cancel' 컬럼이 없습니다.")
