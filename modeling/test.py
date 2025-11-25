@@ -26,7 +26,7 @@ def load_test_data():
         print(f"Error: 파일을 찾을 수 없습니다. 경로: {file_path}")
         return None
 
-def preprocess_test_data(df, adr_99=None):
+def preprocess_test_data(df):
     """
     test.csv를 v1.py와 동일한 방식으로 전처리합니다.
     """
@@ -37,32 +37,6 @@ def preprocess_test_data(df, adr_99=None):
     if 'client_id' in df_proc.columns:
         client_ids = df_proc['client_id'].copy()
         df_proc.drop(['client_id'], axis=1, inplace=True)
-    
-    # 필요없는 컬럼 제거 (학습 시와 동일)
-    useless_col = ['days_in_waiting_list', 'arrival_date_year', 'assigned_room_type', 
-                   'booking_changes', 'reservation_status', 'country']
-    df_proc.drop(useless_col, axis=1, inplace=True, errors='ignore')
-    
-    # ADR capping (학습 시 사용한 99th percentile 값 사용)
-    if adr_99 is not None and 'adr' in df_proc.columns:
-        df_proc['adr'] = np.where(df_proc['adr'] > adr_99, adr_99, df_proc['adr'])
-    
-    # === Feature Engineering (v1.py와 동일) ===
-    # 1. has_special_requests: 특별 요청 있음 여부
-    if 'total_of_special_requests' in df_proc.columns:
-        df_proc['has_special_requests'] = (df_proc['total_of_special_requests'] > 0).astype(int)
-    
-    # 2. is_planned: 사전 계획 예약 (90일 이상)
-    if 'lead_time' in df_proc.columns:
-        df_proc['is_planned'] = (df_proc['lead_time'] >= 90).astype(int)
-    
-    # 3. is_last_minute: 당일/직전 예약 (3일 이내)
-    if 'lead_time' in df_proc.columns:
-        df_proc['is_last_minute'] = (df_proc['lead_time'] <= 3).astype(int)
-    
-    # 4. needs_parking: 주차 필요 여부
-    if 'required_car_parking_spaces' in df_proc.columns:
-        df_proc['needs_parking'] = (df_proc['required_car_parking_spaces'] > 0).astype(int)
     
     # reservation_status_date는 데이터 누수 컬럼이므로 제거
     df_proc.drop(['reservation_status_date'], axis=1, inplace=True, errors='ignore')
@@ -126,16 +100,14 @@ def predict_test_data(model, X_test):
     테스트 데이터에 대해 예측을 수행합니다.
     """
     try:
-        predictions = model.predict(X_test)
-        probabilities = model.predict_proba(X_test)
-        
+        probabilities = model.predict(X_test)  # 확률값 반환
+        predictions = (probabilities > 0.5).astype(int)  # 0.5 기준 이진 분류
         print(f"\n예측 완료!")
         print(f"예측 결과 샘플 (첫 10개):")
-        print(f"{'Index':<10}{'Prediction':<15}{'Prob(No Cancel)':<20}{'Prob(Cancel)':<20}")
-        print("-" * 65)
+        print(f"{'Index':<10}{'Prediction':<15}{'Prob(Cancel)':<20}")
+        print("-" * 45)
         for i in range(min(10, len(predictions))):
-            print(f"{i:<10}{predictions[i]:<15}{probabilities[i][0]:<20.4f}{probabilities[i][1]:<20.4f}")
-        
+            print(f"{i:<10}{predictions[i]:<15}{probabilities[i]:<20.4f}")
         return predictions, probabilities
     except Exception as e:
         print(f"Error during prediction: {e}")
@@ -196,19 +168,26 @@ if __name__ == "__main__":
         output_path = os.path.join(current_dir, '..', 'data', 'test_predictions.csv')
         output_path = os.path.normpath(output_path)
         
+        # 예측 결과를 name, prediction, probability_no_cancel, probability_cancel 형식으로 저장
+        # client_id가 이름 역할을 한다고 가정
+        # name 컬럼이 있으면 예측 결과에 사용
+        if 'name' in test_data.columns:
+            name_col = test_data['name'].copy()
+            test_data = test_data.drop(['name'], axis=1)
+        elif 'client_id' in test_data.columns:
+            name_col = test_data['client_id'].copy()
+            test_data = test_data.drop(['client_id'], axis=1)
+        else:
+            name_col = pd.Series(range(len(test_data)))
         result_df = pd.DataFrame({
+            'name': name_col.values,
             'prediction': predictions,
-            'probability_no_cancel': probabilities[:, 0],
-            'probability_cancel': probabilities[:, 1]
+            'probability_no_cancel': 1 - probabilities,
+            'probability_cancel': probabilities
         })
-        
-        # client_id가 있으면 맨 앞에 추가
-        if client_ids is not None:
-            result_df.insert(0, 'client_id', client_ids.values)
-        
-        result_df.to_csv(output_path, index=False)
-        print(f"\n예측 결과가 저장되었습니다: {output_path}")
-    
+    result_df.to_csv(output_path, index=False)
+    print(f"\n예측 결과가 저장되었습니다: {output_path}")
+
     print("\n" + "=" * 60)
     print("테스트 완료!")
     print("=" * 60)
