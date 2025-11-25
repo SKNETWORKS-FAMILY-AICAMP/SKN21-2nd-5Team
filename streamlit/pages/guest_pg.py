@@ -19,8 +19,9 @@ check_access(["admin", "guest"], current_page_name) # 이 페이지는 "admin" �
 # --- 이미지 파일의 기본 경로 설정 ---
 current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # CSV_FILE_PATH를 current_dir과 같은 위치에 두는 것이 권장됩니다.
-CSV_FILE_PATH = os.path.join(current_dir, 'data',"hotel_bookings_data.csv") 
+CSV_FILE_PATH = os.path.join(current_dir, '..', 'data',"hotel_bookings_data.csv") 
 IMAGE_BASE_DIR = os.path.join(current_dir, '..', 'data', 'images') # 이미지 폴더 경로는 그대로
+
 
 # --- 객실 유형 데이터  ---
 room_type_definitions = {
