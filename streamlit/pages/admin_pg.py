@@ -3,12 +3,31 @@ import pandas as pd
 import os
 import plotly.express as px
 import plotly.graph_objects as go
+import numpy as np
+import sys # sys 모듈 임포트
+
+# --- 경로 설정 및 sys.path 추가 ---
+# 현재 스크립트가 있는 디렉토리 (streamlit/pages/)
+current_pages_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 'streamlit' 디렉토리의 절대 경로 (pages의 한 단계 상위)
+streamlit_root_dir = os.path.dirname(current_pages_dir)
+
+# 'streamlit' 디렉토리를 Python의 모듈 검색 경로(sys.path)에 추가합니다.
+# 이렇게 하면 'streamlit' 디렉토리 바로 아래에 있는 모듈(예: admin_util.py, utils.py)을 직접 임포트할 수 있습니다.
+if streamlit_root_dir not in sys.path:
+    sys.path.insert(0, streamlit_root_dir)
+
+# --- 유틸리티 함수 임포트 ---
+# 'streamlit_root_dir'가 sys.path에 추가되었으므로 'admin_util'과 'utils'를 직접 임포트합니다.
+from admin_util import visualize_customer_data, get_customer_prediction, display_prediction_results
+
+# 이미지 상 'utils.py' 파일이 'streamlit' 폴더 바로 아래에 있을 것으로 예상됩니다.
+# 만약 utils가 폴더(패키지)이고 그 안에 check_access 함수가 있다면 'from utils import check_access' 또는 'from utils.access_control import check_access' 등이 될 수 있습니다.
 from utils import check_access, display_access_denied_message_once
 
 
-
-
-current_page_name = os.path.basename(__file__) # 현재 페이지 스크립트 이름 (예: "index.py")
+current_page_name = os.path.basename(__file__) # 현재 페이지 스크립트 이름 (예: "admin_pg.py")
 
 display_access_denied_message_once(current_page_name)
 
@@ -16,254 +35,85 @@ display_access_denied_message_once(current_page_name)
 # check_access 함수 호출 시 두 번째 인자로 current_page_name을 전달합니다.
 check_access("admin", current_page_name) # 이 페이지는 "admin"만 접근 가능
 
+# --- 데이터 파일 경로 설정 ---
+# 이미지 상 'data' 폴더가 'streamlit' 폴더 바로 아래에 있는 것으로 보입니다.
+DATA_PATH = os.path.join(streamlit_root_dir, '..', 'data', 'test.csv')
+PREDICTIONS_PATH = os.path.join(streamlit_root_dir, '..', 'data', 'test_predictions.csv')
 
-st.set_page_config(
-    page_title="호텔 예약 취소 위험도 관리",
-    page_icon="🏨",
-    layout="wide"
-)
+# 파일 존재 여부 확인 및 로드
+if not os.path.exists(DATA_PATH):
+    st.error(f"❌ 고객 데이터를 찾을 수 없습니다: {DATA_PATH}")
+    st.stop()
+if not os.path.exists(PREDICTIONS_PATH):
+    st.error(f"❌ 예측 데이터를 찾을 수 없습니다: {PREDICTIONS_PATH}")
+    st.stop()
 
-# 데이터 로드 함수
-@st.cache_data
-def load_predictions():
-    """test_predictions.csv 파일을 로드합니다."""
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(current_dir, '..', '..', 'data', 'test_predictions.csv')
-    file_path = os.path.normpath(file_path)
-    
-    try:
-        df = pd.read_csv(file_path)
-        return df
-    except FileNotFoundError:
-        st.error(f"예측 결과 파일을 찾을 수 없습니다: {file_path}")
-        st.info("먼저 modeling/test.py를 실행하여 예측 결과를 생성해주세요.")
-        return None
+customer_df = pd.read_csv(DATA_PATH)
+predictions_df = pd.read_csv(PREDICTIONS_PATH)
 
-def classify_risk(probability):
-    """취소 확률에 따라 위험도를 분류합니다."""
-    if probability < 0.3:
-        return "안전군"
-    elif probability < 0.6:
-        return "주의군"
-    else:
-        return "위험군"
+with st.sidebar:
+    st.title("관리자 페이지")
+    st.markdown("-----")
+    # Streamlit Multipage 앱에서는 st.page_link를 사용하여 다른 페이지로 이동합니다.
+    # http://localhost:8504/ 는 앱의 루트를 나타냅니다. 실제 경로에 따라 수정 필요할 수 있습니다.
+    st.page_link("main.py", label="메인 통계 대시보드", icon="📊") # main.py가 메인 페이지라고 가정
+    st.page_link("pages/admin_pg.py", label="개별 고객 분석", icon="👤")  # 현재 페이지는 활성화
 
-def get_risk_color(risk_level):
-    """위험도에 따른 색상을 반환합니다."""
-    colors = {
-        "안전군": "#28a745",  # 초록색
-        "주의군": "#ffc107",  # 노란색
-        "위험군": "#dc3545"   # 빨간색
-    }
-    return colors.get(risk_level, "#6c757d")
-
-# 메인 페이지
-st.title("🏨 호텔 예약 취소 위험도 관리 대시보드")
+st.title("🏨 개별 고객 정보 분석")
 st.markdown("---")
 
-# 데이터 로드
-df = load_predictions()
+# 고객 선택 방법
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown("##### ✅ 고객 선택 방식")
+with col2:
+    selection_method = st.radio(
+        "선택 방식",
+        ["테이블에서 행 선택", "고객 ID로 직접 검색"],
+        label_visibility="collapsed",
+        horizontal=True
+    )
+st.markdown("<br>", unsafe_allow_html=True)
 
-if df is not None:
-    # 위험도 분류 추가
-    df['risk_level'] = df['probability_cancel'].apply(classify_risk)
-    df['risk_color'] = df['risk_level'].apply(get_risk_color)
-    
-    # 사이드바 - 필터 설정
-    st.sidebar.header("⚙️ 필터 설정")
-    
-    # 임계값 조정
-    st.sidebar.subheader("위험도 임계값 설정")
-    threshold_safe = st.sidebar.slider(
-        "안전군 상한 (이하)", 
-        min_value=0.0, 
-        max_value=1.0, 
-        value=0.3, 
-        step=0.05
-    )
-    threshold_caution = st.sidebar.slider(
-        "주의군 상한 (이하)", 
-        min_value=0.0, 
-        max_value=1.0, 
-        value=0.6, 
-        step=0.05
-    )
-    
-    # 사용자 정의 임계값으로 재분류
-    def classify_risk_custom(probability):
-        if probability < threshold_safe:
-            return "안전군"
-        elif probability < threshold_caution:
-            return "주의군"
-        else:
-            return "위험군"
-    
-    df['risk_level'] = df['probability_cancel'].apply(classify_risk_custom)
-    df['risk_color'] = df['risk_level'].apply(get_risk_color)
-    
-    # 위험도 필터
-    st.sidebar.subheader("위험도 필터")
-    risk_filter = st.sidebar.multiselect(
-        "표시할 위험도 선택",
-        options=["안전군", "주의군", "위험군"],
-        default=["안전군", "주의군", "위험군"]
-    )
-    
-    # 필터 적용
-    filtered_df = df[df['risk_level'].isin(risk_filter)]
-    
-    # 상단 통계 카드
-    col1, col2, col3, col4 = st.columns(4)
-    
-    total_count = len(df)
-    safe_count = len(df[df['risk_level'] == "안전군"])
-    caution_count = len(df[df['risk_level'] == "주의군"])
-    danger_count = len(df[df['risk_level'] == "위험군"])
-    
-    with col1:
-        st.metric(
-            label="전체 예약",
-            value=f"{total_count}건"
-        )
-    
-    with col2:
-        st.metric(
-            label="🟢 안전군",
-            value=f"{safe_count}건",
-            delta=f"{safe_count/total_count*100:.1f}%"
-        )
-    
-    with col3:
-        st.metric(
-            label="🟡 주의군",
-            value=f"{caution_count}건",
-            delta=f"{caution_count/total_count*100:.1f}%"
-        )
-    
-    with col4:
-        st.metric(
-            label="🔴 위험군",
-            value=f"{danger_count}건",
-            delta=f"{danger_count/total_count*100:.1f}%"
-        )
-    
-    st.markdown("---")
-    
-    # 차트 영역
-    col_chart1, col_chart2 = st.columns(2)
-    
-    with col_chart1:
-        st.subheader("📊 위험도 분포")
-        
-        # 파이 차트
-        risk_counts = df['risk_level'].value_counts()
-        fig_pie = go.Figure(data=[go.Pie(
-            labels=risk_counts.index,
-            values=risk_counts.values,
-            marker=dict(colors=[get_risk_color(level) for level in risk_counts.index]),
-            hole=0.4
-        )])
-        fig_pie.update_layout(height=300)
-        st.plotly_chart(fig_pie, use_container_width=True)
-    
-    with col_chart2:
-        st.subheader("📈 취소 확률 분포")
-        
-        # 히스토그램
-        fig_hist = px.histogram(
-            df,
-            x='probability_cancel',
-            nbins=20,
-            color='risk_level',
-            color_discrete_map={
-                "안전군": "#28a745",
-                "주의군": "#ffc107",
-                "위험군": "#dc3545"
-            },
-            labels={'probability_cancel': '취소 확률', 'count': '고객 수'}
-        )
-        fig_hist.update_layout(height=300, showlegend=True)
-        st.plotly_chart(fig_hist, use_container_width=True)
-    
-    st.markdown("---")
-    
-    # 상세 테이블
-    st.subheader("📋 고객별 위험도 상세")
-    
-    # 정렬 옵션
-    sort_col1, sort_col2 = st.columns([3, 1])
-    with sort_col1:
-        sort_by = st.selectbox(
-            "정렬 기준",
-            options=['probability_cancel', 'risk_level', 'client_id'],
-            format_func=lambda x: {
-                'probability_cancel': '취소 확률 (높은 순)',
-                'risk_level': '위험도',
-                'client_id': '고객 ID'
-            }.get(x, x)
-        )
-    
-    with sort_col2:
-        ascending = st.checkbox("오름차순", value=False)
-    
-    # 정렬 적용
-    display_df = filtered_df.copy()
-    if sort_by == 'probability_cancel':
-        display_df = display_df.sort_values('probability_cancel', ascending=ascending)
-    elif sort_by == 'risk_level':
-        risk_order = {"위험군": 3, "주의군": 2, "안전군": 1}
-        display_df['risk_order'] = display_df['risk_level'].map(risk_order)
-        display_df = display_df.sort_values('risk_order', ascending=ascending)
-        display_df = display_df.drop('risk_order', axis=1)
-    else:
-        display_df = display_df.sort_values('client_id', ascending=ascending)
-    
-    # 테이블 표시용 데이터 준비
-    if 'client_id' in display_df.columns:
-        table_df = display_df[['client_id', 'probability_cancel', 'probability_no_cancel', 'risk_level']].copy()
-        table_df.columns = ['고객 ID', '취소 확률', '유지 확률', '위험도']
-    else:
-        table_df = display_df[['probability_cancel', 'probability_no_cancel', 'risk_level']].copy()
-        table_df.columns = ['취소 확률', '유지 확률', '위험도']
-    
-    # 확률을 퍼센트로 변환
-    table_df['취소 확률'] = table_df['취소 확률'].apply(lambda x: f"{x*100:.2f}%")
-    table_df['유지 확률'] = table_df['유지 확률'].apply(lambda x: f"{x*100:.2f}%")
-    
-    # 스타일 적용 함수
-    def highlight_risk(row):
-        color = get_risk_color(row['위험도'])
-        return [f'background-color: {color}20' for _ in row]
-    
-    styled_table = table_df.style.apply(highlight_risk, axis=1)
-    
-    st.dataframe(styled_table, use_container_width=True, height=400)
-    
-    # 다운로드 버튼
-    st.markdown("---")
-    col_download1, col_download2 = st.columns([1, 5])
-    
-    with col_download1:
-        csv = filtered_df.to_csv(index=False).encode('utf-8-sig')
-        st.download_button(
-            label="📥 CSV 다운로드",
-            data=csv,
-            file_name="risk_analysis.csv",
-            mime="text/csv"
-        )
-    
-    # 위험군 고객 알림
-    if danger_count > 0:
-        st.markdown("---")
-        st.warning(f"⚠️ **주의**: {danger_count}명의 고객이 취소 위험군에 속합니다. 사전 대응이 필요합니다.")
-        
-        danger_customers = df[df['risk_level'] == "위험군"]
-        if 'client_id' in danger_customers.columns:
-            st.write("**위험군 고객 목록:**")
-            danger_list = danger_customers[['client_id', 'probability_cancel']].copy()
-            danger_list['probability_cancel'] = danger_list['probability_cancel'].apply(lambda x: f"{x*100:.2f}%")
-            danger_list.columns = ['고객 ID', '취소 확률']
-            st.dataframe(danger_list, use_container_width=True)
+# 검색 방식 1 - 고객 ID로 직접 검색
+if selection_method == "고객 ID로 직접 검색":
+    customer_ids = customer_df['name'].unique() if 'name' in customer_df.columns else []
 
+    selected_customer_id = st.selectbox("분석할 고객 이름 선택", options=customer_ids, index=None)
+
+    if selected_customer_id:
+        selected_row = customer_df[customer_df['name'] == selected_customer_id].iloc[0]
+        selected_index = customer_df[customer_df['name'] == selected_customer_id].index[0]
+
+        # 고객 기본 정보 표시
+        visualize_customer_data(selected_row, selected_index)
+
+        # 예측 결과 분석
+        prediction_data = get_customer_prediction(selected_row, predictions_df)
+        display_prediction_results(prediction_data, predictions_df)
+
+# 검색 방식 2 - 데이터 테이블에서 행 선택
 else:
-    st.warning("예측 결과 파일이 없습니다. modeling/test.py를 먼저 실행해주세요.")
+    st.subheader("🗂️ 고객 데이터 테이블")
+    st.write("아래에서 행을 선택하여 상세 정보를 확인하세요")
+
+    # 인터랙티브 데이터프레임 (행 선택 가능)
+    events = st.dataframe(
+        data=customer_df,
+        width='stretch',
+        on_select="rerun",
+        selection_mode="single-row"
+    )
+
+    # 행이 선택되었을 때 시각화
+    if events.selection["rows"]:
+        selected_indices = events.selection["rows"]
+        selected_index = selected_indices[0]
+        selected_row = customer_df.iloc[selected_index]
+
+        # 고객 기본 정보 표시
+        visualize_customer_data(selected_row, selected_index)
+
+        # 예측 결과 분석
+        prediction_data = get_customer_prediction(selected_row, predictions_df)
+        display_prediction_results(prediction_data, predictions_df)
