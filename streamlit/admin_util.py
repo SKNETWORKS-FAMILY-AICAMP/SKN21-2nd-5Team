@@ -38,16 +38,27 @@ def visualize_customer_data(customer_row, customer_index):
         st.metric("주차 공간", customer_row['required_car_parking_spaces'])
     st.markdown("---")
     
+    # special_requests 변수를 기본값으로 초기화하여 UnboundLocalError 방지
+    special_requests = "" 
+
     if customer_row['total_of_special_requests'] > 0:
         special_requests = customer_row['customer_special_requests']
+        
+    # 이제 special_requests는 항상 정의되어 있습니다.
+    # 실제 요청 내용이 있고, 'None' 문자열이 아닌 경우에만 처리합니다.
     if special_requests and special_requests != 'None':
         requests_list = [req.strip().strip("'") for req in special_requests.split('/') if req.strip()]
-        st.write(f"**요청사항 ({customer_row['total_of_special_requests']}건)**")
-        for request in requests_list:
-            st.write(f"- {request}")
+        # 분리 및 정리 후에도 요청 목록이 비어 있지 않은 경우에만 표시
+        if requests_list:
+            st.write(f"**요청사항 ({customer_row['total_of_special_requests']}건)**")
+            for request in requests_list:
+                st.write(f"- {request}")
+        else: # 예를 들어 special_requests가 '/' 또는 ' / '만 포함된 경우
+            st.write("**특별 요청사항:** 없음")
     else:
         st.write("**특별 요청사항:** 없음")
     st.markdown("---")
+
 
 # 위험도 분류 및 색상 함수
 def classify_risk(prob):
