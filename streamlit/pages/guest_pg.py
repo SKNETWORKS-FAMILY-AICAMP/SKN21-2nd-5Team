@@ -5,9 +5,11 @@ import io
 from PIL import Image
 import pandas as pd
 from utils import check_access, display_access_denied_message_once
+import sys
+import lightgbm as lgb
+import pickle
 
-
-current_page_name = os.path.basename(__file__) # 현재 페이지 스크립트 이름 (예: "guest_pg.py")
+current_page_name = os.path.basename(__file__) # 현재 페이지 스크립트 이름 (예: "front_josh.py")
 
 # 세션 상태에 저장된 접근 거부 메시지가 있다면 표시
 display_access_denied_message_once(current_page_name)
@@ -88,6 +90,44 @@ def resize_and_crop_image(image_bytes, target_aspect_ratio=(16, 9)):
     except Exception as e:
         st.error(f"이미지 처리 중 오류 발생: {e}")
         return None 
+
+#--- 예측 함수 ---
+sys.path.append(os.path.dirname(current_dir))
+from modeling import predict
+def pred(row):
+    
+    cb_data = df_new_row.copy()
+    cb_data.drop(columns='is_canceled')
+    cb_data,clients_id = predict.preprocess_test_data(cb_data)
+
+    feature_cols_path = os.path.join(current_dir, '..', 'model', 'feature_columns.pkl')
+    feature_cols_path = os.path.normpath(feature_cols_path)
+
+    with open(feature_cols_path, "rb") as f:
+        feature_columns = pickle.load(f)
+    
+    
+
+    cb_data = predict.align_test_features(cb_data,feature_columns)
+    
+    model_path = os.path.join(current_dir, '..', 'model', 'lgbm_model.txt')
+    model_path = os.path.normpath(model_path)
+
+    lgb_model = predict.load_model()
+
+            
+    predictions, probabilities = predict.predict_test_data(lgb_model, cb_data)
+    
+    output_path = os.path.join(current_dir, '..', 'data', 'test_predictions.csv')
+    output_path = os.path.normpath(output_path)
+    
+    result_df = pd.DataFrame({
+            'name':cb_data['name'],
+            'prediction': predictions,
+            'probability_no_cancel': 1 - probabilities,
+            'probability_cancel': probabilities
+        })
+    result_df.to_csv(output_path,mode='a',index=False)
 
 
 # 페이지 설정 (전체 너비 사용)
@@ -393,7 +433,7 @@ if st.button("✅ 저장", type="primary"):
         
         room_type_code_for_csv = room_type_filter.split(' ')[0]
 
-        avg_price_per_night = float(room_type_filter.split('$')[1])
+        avg_price_per_night = 0 # 이 예제에서는 고정값 또는 계산 로직이 없으므로 0으로 설정
         
         # --- 고객 요청 사항 처리 ---
         # 비어있지 않은 요청 텍스트만 추출
@@ -460,6 +500,8 @@ if st.button("✅ 저장", type="primary"):
             else:
                 df_new_row.to_csv(CSV_FILE_PATH, mode='w', header=True, index=False, encoding='utf-8-sig')
             
+            pred(df_new_row)
+
             st.session_state.last_submission_status = "success"
             st.session_state.last_submission_data["file_exists_after_write"] = os.path.exists(CSV_FILE_PATH)
             st.session_state.last_submission_data["file_size_after_write"] = os.path.getsize(CSV_FILE_PATH)
