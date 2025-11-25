@@ -60,7 +60,7 @@ def preprocess_data(df):
     
     print(f"\n데이터 클리닝 완료. Shape: {df_proc.shape}")
     
-    useless_col = ['reservation_status', 'reservation_status_date', 'company']
+    useless_col = ['reservation_status', 'reservation_status_date']
 
     df_proc.drop(useless_col, axis = 1, inplace = True)
     
@@ -122,7 +122,7 @@ def train_model(df):
         return auc
 
     study = optuna.create_study(direction='maximize')
-    study.optimize(objective, n_trials=1)
+    study.optimize(objective, n_trials=30)
     print('Best trial:', study.best_trial.params)
 
     best_params = study.best_trial.params
