@@ -6,9 +6,6 @@ import plotly.graph_objects as go
 import numpy as np
 from admin_util import visualize_customer_data, get_customer_prediction, display_prediction_results
 
-
-# /Users/wjsdndud/SKNAIcamp/02_Project/SKN21-2nd-5Team/streamlit/admin_personal_customer.py
-
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_PATH = os.path.join(BASE_DIR, 'data', 'test.csv')
 PREDICTIONS_PATH = os.path.join(BASE_DIR, 'data', 'test_predictions.csv')

@@ -328,10 +328,9 @@ if st.button("➕ 추가 요청 사항 추가", key="add_new_request_btn", on_cl
     st.session_state.next_request_id += 1
     st.rerun() # 동적 위젯 변경을 위해 필요
 
-filtered_requests = [item["text"] for item in st.session_state.special_requests if item["text"].strip() != ""]
-total_special_requests_count = len(filtered_requests)
-
-st.write(f"현재 총 추가 요청 사항: **{total_special_requests_count}**개")
+# `total_of_special_requests` 필드에 들어갈 실제 요청 개수
+filtered_requests_count = len([item["text"] for item in st.session_state.special_requests if item["text"].strip() != ""])
+st.write(f"현재 총 추가 요청 사항: **{filtered_requests_count}**개")
 
 
 st.markdown("---")
@@ -362,14 +361,15 @@ if st.button("✅ 저장", type="primary"):
         # 유효성 검사 실패 시, st.rerun() 없이 현재 스크립트 실행을 마무리하고 하단 피드백 섹션에서 에러 표시
     else:
         # --- CSV 저장 로직 시작 ---
-        # "name" 컬럼 추가
+        # "name" 컬럼 및 "customer_special_requests" 컬럼 추가
         column_names = [
            'name', 'hotel','is_canceled','lead_time','arrival_date_year','arrival_date_month','arrival_date_week_number',
            'arrival_date_day_of_month','stays_in_weekend_nights','stays_in_week_nights','adults','children','babies',
            'meal','country','market_segment','distribution_channel','is_repeated_guest','previous_cancellations',
            'previous_bookings_not_canceled','reserved_room_type','assigned_room_type','booking_changes',
            'deposit_type','agent','company','days_in_waiting_list','customer_type','adr','required_car_parking_spaces',
-           'total_of_special_requests','reservation_status','reservation_status_date'
+           'total_of_special_requests','reservation_status','reservation_status_date',
+           'customer_special_requests' # 새롭게 추가된 컬럼
         ]
 
         # 계산 가능한 값들
@@ -393,6 +393,13 @@ if st.button("✅ 저장", type="primary"):
         room_type_code_for_csv = room_type_filter.split(' ')[0]
 
         avg_price_per_night = 0 # 이 예제에서는 고정값 또는 계산 로직이 없으므로 0으로 설정
+        
+        # --- 고객 요청 사항 처리 ---
+        # 비어있지 않은 요청 텍스트만 추출
+        actual_special_requests = [item["text"].strip() for item in st.session_state.special_requests if item["text"].strip() != ""]
+        # 추출된 요청들을 "/"로 연결, 요청이 없으면 빈 문자열
+        customer_special_requests_str = "/".join(actual_special_requests)
+
 
         data = {
             'name': st.session_state.customer_name, # 고객 이름 추가
@@ -425,9 +432,10 @@ if st.button("✅ 저장", type="primary"):
             'customer_type': 'Transient', # 기본값
             'adr': avg_price_per_night,
             'required_car_parking_spaces': required_parking_spaces,
-            'total_of_special_requests': total_special_requests_count,
+            'total_of_special_requests': filtered_requests_count, # 변경된 부분: 실제 유효한 요청 수
             'reservation_status': 'New Input', 
-            'reservation_status_date': datetime.date.today().strftime('%Y-%m-%d')
+            'reservation_status_date': datetime.date.today().strftime('%Y-%m-%d'),
+            'customer_special_requests': customer_special_requests_str # 추가된 고객 요청 사항
         }
 
         df_new_row = pd.DataFrame([data], columns=column_names)
@@ -497,7 +505,8 @@ if st.button("초기화", key="clear_success_message", on_click=clear_submission
         st.session_state.special_requests = [{"id": st.session_state.next_request_id, "text": ""}]
         st.session_state.next_request_id += 1
         
-        st.rerun()    
+        st.rerun()
+
 
 #객실 이미지 출처
 
