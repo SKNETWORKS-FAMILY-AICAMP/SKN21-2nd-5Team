@@ -86,10 +86,11 @@ def align_test_features(X_test, feature_cols):
             X_test = X_test.drop(col, axis=1)
     
     # 학습 시 있던 컬럼 중 테스트에 없는 컬럼은 0으로 채움
-    for col in feature_cols:
-        if col not in X_test.columns:
-            X_test[col] = 0
-    
+    missing_cols = [col for col in feature_cols if col not in X_test.columns]
+    if missing_cols:
+        new_cols = pd.DataFrame(0, index=X_test.index, columns=missing_cols)
+        X_test = pd.concat([X_test, new_cols], axis=1)
+
     # 컬럼 순서를 학습 시와 동일하게 정렬
     X_test = X_test[feature_cols]
     
@@ -131,7 +132,6 @@ if __name__ == "__main__":
     
     processed_test, client_ids = preprocess_test_data(test_data)
     print(f"전처리 완료. Shape: {processed_test.shape}")
-    print(f"컬럼: {processed_test.columns.tolist()}")
     
     # 3. 모델 및 feature 컬럼 로드
     print("\n모델 로드 중...")
