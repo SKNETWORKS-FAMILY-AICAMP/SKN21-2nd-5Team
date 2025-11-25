@@ -93,7 +93,7 @@ st.markdown("---")
 today = datetime.date.today()
 tomorrow = today + datetime.timedelta(days=1)
 
-# --- Streamlit Session State 초기화 (페이지 로드 시 한 번만 실행) ---
+# --- Streamlit Session State 초기화 ---
 if 'customer_name' not in st.session_state:
     st.session_state.customer_name = ""
 if 'special_requests' not in st.session_state: # 추가 요청 사항 초기화
@@ -127,21 +127,6 @@ def clear_submission_status():
     st.session_state.last_submission_status = None
     st.session_state.last_submission_data = None
 
-# --- 예약 성공 후 폼 필드를 초기화하는 함수 ---
-def reset_form_state_after_save():
-    st.session_state.customer_name = ""
-    st.session_state.booking_date_range = (datetime.date.today(), datetime.date.today() + datetime.timedelta(days=1))
-    st.session_state.adults_count = 1
-    st.session_state.children_count = 0
-    st.session_state.infants_count = 0
-    st.session_state.room_type_selector = "모든 객실 유형"
-    st.session_state.meal_plan_selector = "Undefined"
-    st.session_state.parking_spaces_count = 0
-    st.session_state.special_requests = [{"id": 0, "text": ""}] # 추가 요청 사항 초기화
-    st.session_state.next_request_id = 1 # 다음 ID도 초기화
-    st.session_state.last_submission_status = None # 상태 메시지 초기화
-    st.session_state.last_submission_data = None
-
 st.markdown("---")
 # --- 고객님 성함, 체크인/아웃 날짜, 투숙객 수를 한 줄에 배치 ---
 st.subheader("📝 예약 정보 입력")
@@ -162,7 +147,6 @@ with col_date:
     booking_dates = st.date_input(
         "체크인/체크아웃 날짜를 선택해주세요:",
         min_value=today,
-        value=st.session_state.booking_date_range, # Session State 값 사용
         key="booking_date_range", 
         help="체크인 날짜와 체크아웃 날짜를 선택합니다.",
         on_change=clear_submission_status # 변경 시 에러 메시지 초기화
@@ -190,17 +174,17 @@ with col_guests:
     adults_col_inner, children_col_inner, infants_col_inner = st.columns(3)
     with adults_col_inner:
         adults = st.number_input(
-            "성인", min_value=0, value=st.session_state.adults_count, key="adults_count", help="만 13세 이상의 투숙객 수",
+            "성인", min_value=0, key="adults_count", help="만 13세 이상의 투숙객 수",
             on_change=clear_submission_status # 변경 시 에러 메시지 초기화
         )
     with children_col_inner:
         children = st.number_input(
-            "어린이", min_value=0, value=st.session_state.children_count, key="children_count", help="만 2세 ~ 12세 투숙객 수",
+            "어린이", min_value=0, key="children_count", help="만 2세 ~ 12세 투숙객 수",
             on_change=clear_submission_status # 변경 시 에러 메시지 초기화
         )
     with infants_col_inner:
         infants = st.number_input(
-            "유아", min_value=0, value=st.session_state.infants_count, key="infants_count", help="만 2세 미만 투숙객 수",
+            "유아", min_value=0, key="infants_count", help="만 2세 미만 투숙객 수",
             on_change=clear_submission_status # 변경 시 에러 메시지 초기화
         )
 
@@ -215,7 +199,6 @@ with add_col1:
     room_type_filter = st.selectbox(
         "객실 유형",
         room_type_options,
-        index=room_type_options.index(st.session_state.room_type_selector), # Session State 값 사용
         key="room_type_selector", 
         help="선호하는 객실의 유형을 선택하세요.",
         on_change=clear_submission_status # 변경 시 에러 메시지 초기화
@@ -230,14 +213,13 @@ with add_col2:
     meal_plan = st.selectbox(
         "식사 여부",
         meal_plan_options,
-        index=meal_plan_options.index(st.session_state.meal_plan_selector), # Session State 값 사용
         key="meal_plan_selector", 
         help="BB: Bed & Breakfast (일 1회 식사), HB: Half Board (일 2회 식사), FB: Full Board (일 3회 식사), SC: Self-Catering(식사 안함), Undefined(미정)",
         on_change=clear_submission_status # 변경 시 에러 메시지 초기화
     )
 with add_col3:
     required_parking_spaces = st.number_input(
-        "주차 공간 수", min_value=0, max_value=4, value=st.session_state.parking_spaces_count, key="parking_spaces_count", help="필요한 주차 공간의 수를 입력하세요. 객실당 최대 4대",
+        "주차 공간 수", min_value=0, max_value=4, key="parking_spaces_count", help="필요한 주차 공간의 수를 입력하세요. 객실당 최대 4대",
         on_change=clear_submission_status # 변경 시 에러 메시지 초기화
     )
 
@@ -462,17 +444,17 @@ if st.button("✅ 저장", type="primary"):
             st.session_state.last_submission_status = "success"
             st.session_state.last_submission_data["file_exists_after_write"] = os.path.exists(CSV_FILE_PATH)
             st.session_state.last_submission_data["file_size_after_write"] = os.path.getsize(CSV_FILE_PATH)
-            st.session_state.last_submission_data["customer_name"] = st.session_state.customer_name # 성공 메시지에 사용할 이름 저장
+            st.session_state.last_submission_data["customer_name"] = st.session_state.customer_name # 성공 메시지에 사용할 이름 저장 (클리어 전에 저장)
             st.session_state.show_balloons_now = True # 성공 시 풍선 표시 플래그 설정
             
-            # --- 성공 후 모든 폼 필드 초기화 ---
-            reset_form_state_after_save()
+            # 모든 세션 상태 초기화 (다음 입력을 위해)
+            if 'customer_name' in st.session_state:
+                del st.session_state['customer_name']
 
             st.subheader("✅ 예약 저장 성공!")
             st.success(f"🎉 '{st.session_state.last_submission_data['customer_name']}' 님의 예약 정보가 성공적으로 입력되었습니다!")
-            st.info("모든 입력 필드가 초기화되었습니다. 새로운 예약을 진행해주세요.")
-            st.rerun() # 페이지를 새로 고쳐 초기화된 상태를 반영
-
+            st.info("새로운 정보를 입력하려면 아래 '초기화' 버튼을 눌러주세요.")
+            
         except Exception as e:
             st.session_state.last_submission_status = "error"
             # 오류 발생 시 디버깅 정보에 에러 메시지 추가
@@ -485,8 +467,27 @@ if st.button("✅ 저장", type="primary"):
 
 #--- 초기화 버튼 -----
 if st.button("초기화", key="clear_success_message", on_click=clear_submission_status): # 확인 시 에러 메시지 초기화
-        st.session_state.clear() # 모든 세션 상태를 초기화
-        st.rerun()
+         # 초기화할 키 목록 (special_requests 제외)
+        keys_to_reset = [
+            "customer_name",
+            "booking_date_range",
+            "adults_count",
+            "children_count",
+            "infants_count",
+            "room_type_selector",
+            "meal_plan_selector",
+            "parking_spaces_count"
+        ]
+
+        # 선택한 키만 삭제 → Streamlit이 위젯 기본값으로 초기화
+        for key in keys_to_reset:
+            if key in st.session_state:
+                del st.session_state[key]
+
+        st.session_state.special_requests = [{"id": st.session_state.next_request_id, "text": ""}]
+        st.session_state.next_request_id += 1
+        
+        st.rerun()    
 
 #객실 이미지 출처
 
