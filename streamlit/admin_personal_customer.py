@@ -9,7 +9,7 @@ from streamlit_elements import elements, mui, html, dashboard, editor, nivo, med
 # /Users/wjsdndud/SKNAIcamp/02_Project/SKN21-2nd-5Team/streamlit/admin_personal_customer.py
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_PATH = os.path.join(BASE_DIR, 'data', 'hotel_bookings_data.csv')
+DATA_PATH = os.path.join(BASE_DIR, 'data', 'test.csv')
 PREDICTIONS_PATH = os.path.join(BASE_DIR, 'data', 'test_predictions.csv')
 
 customer_df = pd.read_csv(DATA_PATH)
