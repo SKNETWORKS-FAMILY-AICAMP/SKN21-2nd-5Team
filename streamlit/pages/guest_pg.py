@@ -7,7 +7,7 @@ import pandas as pd
 from utils import check_access, display_access_denied_message_once
 
 
-current_page_name = os.path.basename(__file__) # 현재 페이지 스크립트 이름 (예: "front_josh.py")
+current_page_name = os.path.basename(__file__) # 현재 페이지 스크립트 이름 (예: "guest_pg.py")
 
 # 세션 상태에 저장된 접근 거부 메시지가 있다면 표시
 display_access_denied_message_once(current_page_name)

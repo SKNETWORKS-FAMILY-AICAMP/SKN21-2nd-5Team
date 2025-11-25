@@ -36,7 +36,6 @@ display_access_denied_message_once(current_page_name)
 check_access("admin", current_page_name) # 이 페이지는 "admin"만 접근 가능
 
 # --- 데이터 파일 경로 설정 ---
-# 이미지 상 'data' 폴더가 'streamlit' 폴더 바로 아래에 있는 것으로 보입니다.
 DATA_PATH = os.path.join(streamlit_root_dir, '..', 'data', 'hotel_bookings_data.csv')
 PREDICTIONS_PATH = os.path.join(streamlit_root_dir, '..', 'data', 'test_predictions.csv')
 

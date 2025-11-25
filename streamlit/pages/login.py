@@ -38,13 +38,13 @@ with st.form("login_form"):
             st.session_state.role = "admin"
             st.success("관리자님, 성공적으로 로그인되었습니다!")
             # 로그인 성공 후 main.py (대시보드)로 이동
-            st.switch_page("main.py") # <--- 이 부분을 수정했습니다.
+            st.switch_page("main.py")
         elif username == "guest" and password == "1234":
             st.session_state.logged_in = True
             st.session_state.username = username
             st.session_state.role = "guest"
             st.success("게스트님, 성공적으로 로그인되었습니다!")
             # 로그인 성공 후 main.py (대시보드)로 이동
-            st.switch_page("main.py") # <--- 이 부분을 수정했습니다.
+            st.switch_page("main.py")
         else:
             st.error("잘못된 아이디 또는 비밀번호입니다.")
