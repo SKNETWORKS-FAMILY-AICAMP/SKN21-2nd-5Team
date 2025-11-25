@@ -5,11 +5,44 @@ import io
 from PIL import Image
 import pandas as pd
 
+
 # --- 이미지 파일의 기본 경로 설정 ---
-current_dir = os.path.dirname(os.path.abspath(__file__))
+current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # CSV_FILE_PATH를 current_dir과 같은 위치에 두는 것이 권장됩니다.
 CSV_FILE_PATH = os.path.join(current_dir, 'data',"hotel_bookings_data.csv") 
 IMAGE_BASE_DIR = os.path.join(current_dir, 'data', 'images') # 이미지 폴더 경로는 그대로
+
+# --- 객실 유형 데이터  ---
+room_type_definitions = {
+    "A - $15": {
+        "name": "A",
+        "description": "A - $15",
+        "image_filenames": ["A_1.jpg", "A_2.jpg", "A_3.jpg"]
+    },
+    "B - $25": {
+        "name": "B",
+        "description": "B - $25",
+        "image_filenames": ["B_1.jpg", "B_2.jpg", "B_3.jpg"]
+    },
+    "C - $40": {
+        "name": "C",
+        "description": "C - $40",
+        "image_filenames": ["C_1.jpg", "C_2.jpg", "C_3.jpg"]
+    },
+    "D - $65": {
+        "name": "D",
+        "description": "D - $65",
+        "image_filenames": ["D_1.jpg", "D_2.jpg", "D_3.jpg"]
+    },
+    "E - $80": {"name": "E", "description": "E - $80", "image_filenames": ["E_1.jpg", "E_2.jpg", "E_3.jpg"]},
+    "F - $100": {"name": "F", "description": "F - $100", "image_filenames": ["F_1.jpg", "F_2.jpg", "F_3.jpg"]},
+    "G - $125": {"name": "G", "description": "G - $125", "image_filenames": ["G_1.jpg", "G_2.jpg", "G_3.jpg"]},
+    "H - $140": {"name": "H", "description": "H - $140", "image_filenames": ["H_1.jpg", "H_2.jpg", "H_3.jpg"]},
+    "I - $165": {"name": "I", "description": "I - $165", "image_filenames": ["I_1.jpg", "I_2.jpg", "I_3.jpg"]},
+    "K - $185": {"name": "K", "description": "K - $185", "image_filenames": ["K_1.jpg", "K_2.jpg", "K_3.jpg"]},
+    "L - $210": {"name": "L", "description": "L - $210", "image_filenames": ["L_1.jpg", "L_2.jpg", "L_3.jpg"]},
+    "P - $250": {"name": "P", "description": "P - $250", "image_filenames": ["P_1.jpg", "P_2.jpg", "P_3.jpg"]}
+}
 
 # --- 이미지 크기 조절 및 크롭 함수 ---
 def resize_and_crop_image(image_bytes, target_aspect_ratio=(16, 9)):
@@ -44,38 +77,6 @@ def resize_and_crop_image(image_bytes, target_aspect_ratio=(16, 9)):
     except Exception as e:
         st.error(f"이미지 처리 중 오류 발생: {e}")
         return None 
-
-# --- Room Type Definitions ---
-room_type_definitions = {
-    "A - $15": {
-        "name": "A",
-        "description": "A - $15",
-        "image_filenames": ["A_1.jpg", "A_2.jpg", "A_3.jpg"]
-    },
-    "B - $25": {
-        "name": "B",
-        "description": "B - $25",
-        "image_filenames": ["B_1.jpg", "B_2.jpg", "B_3.jpg"]
-    },
-    "C - $40": {
-        "name": "C",
-        "description": "C - $40",
-        "image_filenames": ["C_1.jpg", "C_2.jpg", "C_3.jpg"]
-    },
-    "D - $65": {
-        "name": "D",
-        "description": "D - $65",
-        "image_filenames": ["D_1.jpg", "D_2.jpg", "D_3.jpg"]
-    },
-    "E - $80": {"name": "E", "description": "E - $80", "image_filenames": ["E_1.jpg", "E_2.jpg", "E_3.jpg"]},
-    "F - $100": {"name": "F", "description": "F - $100", "image_filenames": ["F_1.jpg", "F_2.jpg", "F_3.jpg"]},
-    "G - $125": {"name": "G", "description": "G - $125", "image_filenames": ["G_1.jpg", "G_2.jpg", "G_3.jpg"]},
-    "H - $140": {"name": "H", "description": "H - $140", "image_filenames": ["H_1.jpg", "H_2.jpg", "H_3.jpg"]},
-    "I - $165": {"name": "I", "description": "I - $165", "image_filenames": ["I_1.jpg", "I_2.jpg", "I_3.jpg"]},
-    "K - $185": {"name": "K", "description": "K - $185", "image_filenames": ["K_1.jpg", "K_2.jpg", "K_3.jpg"]},
-    "L - $210": {"name": "L", "description": "L - $210", "image_filenames": ["L_1.jpg", "L_2.jpg", "L_3.jpg"]},
-    "P - $250": {"name": "P", "description": "P - $250", "image_filenames": ["P_1.jpg", "P_2.jpg", "P_3.jpg"]}
-}
 
 
 # 페이지 설정 (전체 너비 사용)
@@ -120,18 +121,11 @@ if 'last_submission_status' not in st.session_state:
     st.session_state.last_submission_status = None # 'success', 'error', None
 if 'last_submission_data' not in st.session_state:
     st.session_state.last_submission_data = None # 저장된 디버깅 정보를 딕셔너리로 저장
-if 'show_balloons_now' not in st.session_state: # 풍선을 한 번만 표시하기 위한 플래그
-    st.session_state.show_balloons_now = False
 
 # --- 제출 상태를 초기화하는 함수 ---
 def clear_submission_status():
     st.session_state.last_submission_status = None
     st.session_state.last_submission_data = None
-
-# 풍선 효과는 여기에 배치하여 스크립트 실행 초기에 한 번만 검사하고 실행
-if st.session_state.show_balloons_now:
-    st.balloons()
-    st.session_state.show_balloons_now = False # 표시 후 바로 플래그 초기화
 
 st.markdown("---")
 # --- 고객님 성함, 체크인/아웃 날짜, 투숙객 수를 한 줄에 배치 ---
@@ -193,6 +187,7 @@ with col_guests:
             "유아", min_value=0, key="infants_count", help="만 2세 미만 투숙객 수",
             on_change=clear_submission_status # 변경 시 에러 메시지 초기화
         )
+
 # --- 추가 검색 조건 섹션 ---
 st.markdown("---")
 st.subheader("🔍 추가 검색 조건")
@@ -455,19 +450,10 @@ if st.button("✅ 저장", type="primary"):
             # 모든 세션 상태 초기화 (다음 입력을 위해)
             if 'customer_name' in st.session_state:
                 del st.session_state['customer_name']
-            
-            st.session_state.booking_date_range = (today, tomorrow) 
-            st.session_state.adults_count = 1
-            st.session_state.children_count = 0
-            st.session_state.infants_count = 0
-            st.session_state.room_type_selector = "모든 객실 유형"
-            st.session_state.meal_plan_selector = "Undefined"
-            st.session_state.parking_spaces_count = 0
-            
-            st.session_state.special_requests = [{"id": 0, "text": ""}]
-            st.session_state.next_request_id = 1 
 
-            st.rerun() # 성공 메시지와 초기화된 폼을 표시하기 위해 재실행
+            st.subheader("✅ 예약 저장 성공!")
+            st.success(f"🎉 '{st.session_state.last_submission_data['customer_name']}' 님의 예약 정보가 성공적으로 입력되었습니다!")
+            st.info("새로운 정보를 입력하려면 아래 '초기화' 버튼을 눌러주세요.")
             
         except Exception as e:
             st.session_state.last_submission_status = "error"
@@ -475,52 +461,14 @@ if st.button("✅ 저장", type="primary"):
             st.session_state.last_submission_data["error_message"] = str(e)
             st.session_state.last_submission_data["file_exists_after_write"] = os.path.exists(CSV_FILE_PATH)
             st.session_state.last_submission_data["file_size_after_write"] = os.path.getsize(CSV_FILE_PATH) if os.path.exists(CSV_FILE_PATH) else 0
-            st.rerun() # 에러 메시지를 표시하기 위해 재실행
+            st.subheader("❌ 예약 저장 실패!")
+            error_msg = st.session_state.last_submission_data.get("error_message", "알 수 없는 오류")
+            st.error(f"🚫 예약 정보 저장 중 오류가 발생했습니다 : {error_msg}")
 
-# --- 스크립트 실행 후, 지속적인 피드백 및 디버깅 정보 표시 ---
-if st.session_state.last_submission_status == "success":
-    st.subheader("✅ 예약 저장 성공!")
-    st.success(f"🎉 '{st.session_state.last_submission_data['customer_name']}' 님의 예약 정보가 성공적으로 입력되었습니다!")
-    st.info("새로운 정보를 입력하려면 아래 '확인 및 초기화' 버튼을 눌러주세요.")
-    
-    st.subheader("🔗 최근 저장된 디버깅 정보")
-    data = st.session_state.last_submission_data
-    st.write(f"**CSV 저장 경로:** `{data['path']}`")
-    st.write(f"**상위 디렉토리 존재 여부:** `{data['path_dir_exists']}`")
-    st.write(f"**쓰기 전 파일 존재 여부:** `{data['file_exists_before_write']}` (크기: `{data['file_size_before_write']}` bytes)")
-    st.write(f"**쓰기 후 파일 존재 여부:** `{data['file_exists_after_write']}` (크기: `{data['file_size_after_write']}` bytes)")
-    st.write("**저장된 데이터:**")
-    st.json(data['data_to_save']) # 딕셔너리 형태로 보기 쉽게 출력
-
-    if st.button("확인 및 초기화", key="clear_success_message", on_click=clear_submission_status): # 확인 시 에러 메시지 초기화
-        st.session_state.last_submission_status = None
-        st.session_state.last_submission_data = None
-        st.rerun()
-
-elif st.session_state.last_submission_status == "error":
-    st.subheader("❌ 예약 저장 실패!")
-    error_msg = st.session_state.last_submission_data.get("error_message", "알 수 없는 오류")
-    st.error(f"🚫 예약 정보 저장 중 오류가 발생했습니다: {error_msg}")
-    st.warning("파일 경로, 쓰기 권한, 또는 파일이 다른 프로그램에 의해 잠겨 있는지 확인해 주세요.")
-
-    st.subheader("🔗 오류 발생 시 디버깅 정보")
-    data = st.session_state.last_submission_data
-    st.write(f"**CSV 저장 경로:** `{data.get('path', '정보 없음')}`")
-    st.write(f"**상위 디렉토리 존재 여부:** `{data.get('path_dir_exists', '정보 없음')}`")
-    st.write(f"**쓰기 전 파일 존재 여부:** `{data.get('file_exists_before_write', '정보 없음')}` (크기: `{data.get('file_size_before_write', 0)}` bytes)")
-    st.write(f"**쓰기 후 파일 존재 여부:** `{data.get('file_exists_after_write', '정보 없음')}` (크기: `{data.get('file_size_after_write', 0)}` bytes)")
-    st.write("**시도된 데이터:**")
-    if 'data_to_save' in data:
-        st.json(data['data_to_save'])
-    else:
-        st.write("데이터 없음.")
-    
-    if st.button("확인", key="clear_error_message", on_click=clear_submission_status): # 확인 시 에러 메시지 초기화
-        st.session_state.last_submission_status = None
-        st.session_state.last_submission_data = None
-        st.rerun()
-
-
+#--- 초기화 버튼 -----
+if st.button("초기화", key="clear_success_message", on_click=clear_submission_status): # 확인 시 에러 메시지 초기화
+        st.session_state.clear()
+        st.rerun()    
 
 #객실 이미지 출처
 
