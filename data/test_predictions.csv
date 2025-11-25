@@ -1,4 +1,4 @@
-client_id,prediction,probability_no_cancel,probability_cancel
+name,prediction,probability_no_cancel,probability_cancel
 김민수,0,0.9433230714292514,0.056676928570748596
 이서연,0,0.9486931584422885,0.05130684155771143
 박지훈,0,0.9302502383751257,0.06974976162487433
