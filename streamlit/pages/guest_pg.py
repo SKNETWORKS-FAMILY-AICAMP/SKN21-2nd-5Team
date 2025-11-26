@@ -96,8 +96,11 @@ sys.path.append(os.path.dirname(current_dir))
 from modeling import predict
 def pred(row):
     
-    cb_data = df_new_row.copy()
-    cb_data.drop(columns='is_canceled')
+    cb_data = row.copy()
+    cb_data_name = cb_data['name']
+
+
+    cb_data =cb_data.drop(columns=['is_canceled','name'])
     cb_data,clients_id = predict.preprocess_test_data(cb_data)
 
     feature_cols_path = os.path.join(current_dir, '..', 'model', 'feature_columns.pkl')
@@ -122,7 +125,7 @@ def pred(row):
     output_path = os.path.normpath(output_path)
     
     result_df = pd.DataFrame({
-            'name':cb_data['name'],
+            'name':cb_data_name,
             'prediction': predictions,
             'probability_no_cancel': 1 - probabilities,
             'probability_cancel': probabilities
