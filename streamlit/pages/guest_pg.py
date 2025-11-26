@@ -102,7 +102,7 @@ def pred(row):
     cb_data['client_id'] = cb_data['name']
 
     cb_data_for_prediction  =cb_data.drop(columns=['name','is_canceled','country', 'assigned_room_type','booking_changes','days_in_waiting_list','reservation_status','reservation_status_date'])
-    processed_features = predict.preprocess_test_data(cb_data_for_prediction)
+    processed_features, _ = predict.preprocess_test_data(cb_data_for_prediction)
     
     
     feature_cols_path = os.path.join(PROJECT_ROOT,'model', 'feature_columns.pkl')
