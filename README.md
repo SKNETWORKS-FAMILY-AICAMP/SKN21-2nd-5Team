@@ -88,12 +88,14 @@ SKN21-2nd-5Team/
 - 데이터 누수 컬럼 제거: `reservation_status_date`
 - 중복 정보 컬럼 제거: `arrival_date_month`
 - 결측치 처리: 수치형(0), 범주형('Unknown')
+![alt text](image.png)
 - One-Hot Encoding 적용: 범주형 변수 변환
 
 ### 3. 데이터 분할
 - Train/Validation: 80/20 비율
-- Stratified Split 적용 (클래스 불균형 고려)
+- Stratified Split 적용 (클래스 불균형 고려)  
 
+![alt text](image-1.png)
 ----
 
 ## 모델 구현
