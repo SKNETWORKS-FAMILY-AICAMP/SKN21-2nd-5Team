@@ -383,8 +383,8 @@ st.write(f"현재 총 추가 요청 사항: **{filtered_requests_count}**개")
 
 st.markdown("---")
 
-# --- '저장' 버튼을 누르면 CSV 파일에 데이터를 추가하는 로직 ---
-if st.button("✅ 저장", type="primary"):
+# --- '예약' 버튼을 누르면 CSV 파일에 데이터를 추가하는 로직 ---
+if st.button("✅ 예약", type="primary"):
     validation_passed = True
     submission_error_message = ""
 
