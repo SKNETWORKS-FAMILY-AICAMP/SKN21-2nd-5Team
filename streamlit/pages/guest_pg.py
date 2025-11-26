@@ -4,7 +4,7 @@ import os
 import io
 from PIL import Image
 import pandas as pd
-from utils import check_access, display_access_denied_message_once
+from utils import logout, check_access, display_access_denied_message_once # logout 함수가 이미 임포트되어 있습니다.
 import sys
 import lightgbm as lgb
 import pickle
@@ -143,6 +143,13 @@ st.set_page_config(
     page_title="호텔 예약 페이지",
     initial_sidebar_state="collapsed"
 )
+
+# --- 사이드바 내용 ---
+with st.sidebar:
+    
+    # --- 로그아웃 버튼 ---
+    if st.button("로그아웃", type="secondary", key="logout_guest_pg"):
+        logout() # utils.py에서 가져온 logout 함수를 호출합니다.
 
 st.title("🏨 호텔 예약 페이지")
 st.markdown("---")
@@ -383,8 +390,8 @@ st.write(f"현재 총 추가 요청 사항: **{filtered_requests_count}**개")
 
 st.markdown("---")
 
-# --- '저장' 버튼을 누르면 CSV 파일에 데이터를 추가하는 로직 ---
-if st.button("✅ 저장", type="primary"):
+# --- '예약' 버튼을 누르면 CSV 파일에 데이터를 추가하는 로직 ---
+if st.button("✅ 예약", type="primary"):
     validation_passed = True
     submission_error_message = ""
 
@@ -556,6 +563,7 @@ if st.button("초기화", key="clear_success_message", on_click=clear_submission
         st.session_state.next_request_id += 1
         
         st.rerun()
+
 
 
 #객실 이미지 출처
