@@ -96,14 +96,17 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 sys.path.append(PROJECT_ROOT)
 from modeling import predict
 def pred(row):
-    
-    cb_data = row.copy()
-    cb_data_name = cb_data['name']
+    # 'row'가 Series(단일 레코드)일 경우 DataFrame으로 변환하여 일관된 처리를 보장
+    if isinstance(row, pd.Series):
+        cb_data = pd.DataFrame([row])
+    else:
+        cb_data = row.copy() # 이미 DataFrame인 경우 복사
+
+    cb_data_name = cb_data['name'] # 이는 Series가 됩니다.
     cb_data['client_id'] = cb_data['name']
 
     cb_data_for_prediction  =cb_data.drop(columns=['name','is_canceled','country', 'assigned_room_type','booking_changes','days_in_waiting_list','reservation_status','reservation_status_date'])
     processed_features, _ = predict.preprocess_test_data(cb_data_for_prediction)
-    
     
     feature_cols_path = os.path.join(PROJECT_ROOT,'model', 'feature_columns.pkl')
     feature_cols_path = os.path.normpath(feature_cols_path)
@@ -111,28 +114,27 @@ def pred(row):
     with open(feature_cols_path, "rb") as f:
         feature_columns = pickle.load(f)
     
-    
-
-    cb_data = predict.align_test_features(processed_features,feature_columns)
+    cb_data_aligned = predict.align_test_features(processed_features, feature_columns) # 변수명 변경 (중복 피함)
     
     model_path = os.path.join(PROJECT_ROOT,'model', 'lgbm_model.txt')
     model_path = os.path.normpath(model_path)
 
     lgb_model = predict.load_model()
-
             
-    predictions, probabilities = predict.predict_test_data(lgb_model, cb_data)
+    predictions, probabilities = predict.predict_test_data(lgb_model, cb_data_aligned)
     
     output_path = os.path.join(PROJECT_ROOT,'data', 'test_predictions.csv')
     output_path = os.path.normpath(output_path)
     
     result_df = pd.DataFrame({
-            'name':cb_data_name,
+            'name': cb_data_name.tolist(), # Series를 list로 변환
             'prediction': predictions,
-            'probability_no_cancel': 1 - probabilities,
+            'probability_no_cancel': [1 - p for p in probabilities], # 각 확률에 대해 1-p 계산
             'probability_cancel': probabilities
         })
-    result_df.to_csv(output_path,mode='a',index=False,encoding='utf-8-sig')
+    
+    # --- 변경된 부분: header=False 추가 ---
+    result_df.to_csv(output_path, mode='a', index=False, encoding='utf-8-sig', header=False)
 
 
 # 페이지 설정 (전체 너비 사용)
