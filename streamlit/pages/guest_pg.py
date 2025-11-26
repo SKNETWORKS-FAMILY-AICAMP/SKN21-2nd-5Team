@@ -526,7 +526,7 @@ if st.button("✅ 예약", type="primary"):
             if 'customer_name' in st.session_state:
                 del st.session_state['customer_name']
 
-            st.subheader("✅ 예약 저장 성공!")
+            st.subheader("✅ 예약 성공!")
             st.success(f"🎉 '{st.session_state.last_submission_data['customer_name']}' 님의 예약 정보가 성공적으로 입력되었습니다!")
             st.info("새로운 정보를 입력하려면 아래 '초기화' 버튼을 눌러주세요.")
             
@@ -536,7 +536,7 @@ if st.button("✅ 예약", type="primary"):
             st.session_state.last_submission_data["error_message"] = str(e)
             st.session_state.last_submission_data["file_exists_after_write"] = os.path.exists(CSV_FILE_PATH)
             st.session_state.last_submission_data["file_size_after_write"] = os.path.getsize(CSV_FILE_PATH) if os.path.exists(CSV_FILE_PATH) else 0
-            st.subheader("❌ 예약 저장 실패!")
+            st.subheader("❌ 예약 실패!")
             error_msg = st.session_state.last_submission_data.get("error_message", "알 수 없는 오류")
             st.error(f"🚫 예약 정보 저장 중 오류가 발생했습니다 : {error_msg}")
 
