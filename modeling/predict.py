@@ -73,7 +73,8 @@ def load_model():
         print(f"모델 로드 완료: {model_path}")
         return model
     except Exception as e:
-        print(f"Error loading model: {e}")
+        print(f"에러 타입: {type(e).__name__}")
+        print(f"에러 메시지: {str(e)}")
         return None
 
 def align_test_features(X_test, feature_cols):
@@ -114,80 +115,80 @@ def predict_test_data(model, X_test):
         print(f"Error during prediction: {e}")
         return None, None
 
-# if __name__ == "__main__":
-#     print("=" * 60)
-#     print("테스트 데이터 예측 시작")
-#     print("=" * 60)
+if __name__ == "__main__":
+    print("=" * 60)
+    print("테스트 데이터 예측 시작")
+    print("=" * 60)
     
-#     # 1. 테스트 데이터 로드
-#     test_data = load_test_data()
-#     if test_data is None:
-#         exit(1)
+    # 1. 테스트 데이터 로드
+    test_data = load_test_data()
+    if test_data is None:
+        exit(1)
     
-#     # 2. 전처리
-#     print("\n전처리 시작...")
-#     # is_canceled 컬럼이 있다면 제거 (예측 대상이므로)
-#     if 'is_canceled' in test_data.columns:
-#         test_data = test_data.drop('is_canceled', axis=1)
+    # 2. 전처리
+    print("\n전처리 시작...")
+    # is_canceled 컬럼이 있다면 제거 (예측 대상이므로)
+    if 'is_canceled' in test_data.columns:
+        test_data = test_data.drop('is_canceled', axis=1)
     
-#     processed_test, client_ids = preprocess_test_data(test_data)
-#     print(f"전처리 완료. Shape: {processed_test.shape}")
+    processed_test, client_ids = preprocess_test_data(test_data)
+    print(f"전처리 완료. Shape: {processed_test.shape}")
     
-#     # 3. 모델 및 feature 컬럼 로드
-#     print("\n모델 로드 중...")
-#     model = load_model()
-#     if model is None:
-#         exit(1)
+    # 3. 모델 및 feature 컬럼 로드
+    print("\n모델 로드 중...")
+    model = load_model()
+    if model is None:
+        exit(1)
     
-#     # Feature 컬럼 로드
-#     current_dir = os.path.dirname(os.path.abspath(__file__))
-#     feature_cols_path = os.path.join(current_dir, '..', 'model', 'feature_columns.pkl')
-#     feature_cols_path = os.path.normpath(feature_cols_path)
+    # Feature 컬럼 로드
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    feature_cols_path = os.path.join(current_dir, '..', 'model', 'feature_columns.pkl')
+    feature_cols_path = os.path.normpath(feature_cols_path)
     
-#     try:
-#         with open(feature_cols_path, 'rb') as f:
-#             feature_cols = pickle.load(f)
-#         print(f"Feature 컬럼 로드 완료: {len(feature_cols)}개")
-#     except FileNotFoundError:
-#         print(f"Error: Feature 컬럼 파일을 찾을 수 없습니다. 경로: {feature_cols_path}")
-#         print("먼저 v1.py를 실행하여 모델을 학습시켜주세요.")
-#         exit(1)
+    try:
+        with open(feature_cols_path, 'rb') as f:
+            feature_cols = pickle.load(f)
+        print(f"Feature 컬럼 로드 완료: {len(feature_cols)}개")
+    except FileNotFoundError:
+        print(f"Error: Feature 컬럼 파일을 찾을 수 없습니다. 경로: {feature_cols_path}")
+        print("먼저 v1.py를 실행하여 모델을 학습시켜주세요.")
+        exit(1)
     
-#     # 테스트 데이터 컬럼 정렬
-#     print("\n테스트 데이터 컬럼을 학습 시와 동일하게 정렬 중...")
-#     processed_test = align_test_features(processed_test, feature_cols)
-#     print(f"정렬 완료. Shape: {processed_test.shape}")
+    # 테스트 데이터 컬럼 정렬
+    print("\n테스트 데이터 컬럼을 학습 시와 동일하게 정렬 중...")
+    processed_test = align_test_features(processed_test, feature_cols)
+    print(f"정렬 완료. Shape: {processed_test.shape}")
     
-#     # 4. 예측
-#     print("\n예측 수행 중...")
-#     predictions, probabilities = predict_test_data(model, processed_test)
+    # 4. 예측
+    print("\n예측 수행 중...")
+    predictions, probabilities = predict_test_data(model, processed_test)
     
-#     if predictions is not None:
-#         # 결과를 CSV로 저장
-#         current_dir = os.path.dirname(os.path.abspath(__file__))
-#         output_path = os.path.join(current_dir, '..', 'data', 'test_predictions.csv')
-#         output_path = os.path.normpath(output_path)
+    if predictions is not None:
+        # 결과를 CSV로 저장
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        output_path = os.path.join(current_dir, '..', 'data', 'test_predictions.csv')
+        output_path = os.path.normpath(output_path)
         
-#         # 예측 결과를 name, prediction, probability_no_cancel, probability_cancel 형식으로 저장
-#         # client_id가 이름 역할을 한다고 가정
-#         # name 컬럼이 있으면 예측 결과에 사용
-#         if 'name' in test_data.columns:
-#             name_col = test_data['name'].copy()
-#             test_data = test_data.drop(['name'], axis=1)
-#         elif 'client_id' in test_data.columns:
-#             name_col = test_data['client_id'].copy()
-#             test_data = test_data.drop(['client_id'], axis=1)
-#         else:
-#             name_col = pd.Series(range(len(test_data)))
-#         result_df = pd.DataFrame({
-#             'name': name_col.values,
-#             'prediction': predictions,
-#             'probability_no_cancel': 1 - probabilities,
-#             'probability_cancel': probabilities
-#         })
-#     result_df.to_csv(output_path, index=False)
-#     print(f"\n예측 결과가 저장되었습니다: {output_path}")
+        # 예측 결과를 name, prediction, probability_no_cancel, probability_cancel 형식으로 저장
+        # client_id가 이름 역할을 한다고 가정
+        # name 컬럼이 있으면 예측 결과에 사용
+        if 'name' in test_data.columns:
+            name_col = test_data['name'].copy()
+            test_data = test_data.drop(['name'], axis=1)
+        elif 'client_id' in test_data.columns:
+            name_col = test_data['client_id'].copy()
+            test_data = test_data.drop(['client_id'], axis=1)
+        else:
+            name_col = pd.Series(range(len(test_data)))
+        result_df = pd.DataFrame({
+            'name': name_col.values,
+            'prediction': predictions,
+            'probability_no_cancel': 1 - probabilities,
+            'probability_cancel': probabilities
+        })
+    result_df.to_csv(output_path, index=False)
+    print(f"\n예측 결과가 저장되었습니다: {output_path}")
 
-#     print("\n" + "=" * 60)
-#     print("테스트 완료!")
-#     print("=" * 60)
+    print("\n" + "=" * 60)
+    print("테스트 완료!")
+    print("=" * 60)
