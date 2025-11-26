@@ -2,6 +2,8 @@ import os
 import pandas as pd
 import numpy as np
 import lightgbm as lgb
+import optuna
+from optuna.samplers import TPESampler
 import warnings
 
 # joblib 경고 무시
@@ -135,10 +137,14 @@ def preprocess_data(df):
     
     return df_proc
 
-def train_model(df):
+def train_model(df, use_optuna=True, n_trials=30):
     """
-    데이터를 분할하고 XGBoost 모델을 학습/평가합니다.
-    - Train Set의 비율만을 사용하여 scale_pos_weight를 계산합니다 (데이터 유출 방지).
+    데이터를 분할하고 LightGBM 모델을 학습/평가합니다.
+    
+    Args:
+        df: 전처리된 데이터프레임
+        use_optuna: Optuna를 사용한 하이퍼파라미터 튜닝 여부
+        n_trials: Optuna 시행 횟수
     """
     # 1. X, y 분리
     target = 'is_canceled'
@@ -148,7 +154,7 @@ def train_model(df):
     X = df.drop(target, axis=1)
     y = df[target]
     
-    # 2. Train / Test Split (80:20, 계층 샘플링)
+    # 2. Train / Test Split (70:30, 계층 샘플링)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=42, stratify=y
     )
@@ -159,20 +165,92 @@ def train_model(df):
     # 학습에 사용되는 컬럼 출력
     print(f"\n학습에 사용되는 컬럼 ({len(X_train.columns)}개):")
     print(X_train.columns.tolist())
-
-    # LightGBM 모델 학습 (practice_sj2와 동일 설정)
-    lgbm = lgb.LGBMClassifier(
-        random_state=42,
-        verbose=-1
-    )
+    
+    # Optuna 하이퍼파라미터 튜닝
+    if use_optuna:
+        print(f"\n{'='*60}")
+        print(f"Optuna 하이퍼파라미터 튜닝 시작 (trials={n_trials})")
+        print(f"{'='*60}")
+        
+        def objective(trial):
+            """Optuna objective 함수"""
+            params = {
+                'objective': 'binary',
+                'metric': 'auc',
+                'verbosity': -1,
+                'boosting_type': 'gbdt',
+                'random_state': 42,
+                'n_estimators': trial.suggest_int('n_estimators', 100, 1000),
+                'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
+                'num_leaves': trial.suggest_int('num_leaves', 20, 150),
+                'max_depth': trial.suggest_int('max_depth', 3, 12),
+                'min_child_samples': trial.suggest_int('min_child_samples', 10, 100),
+                'subsample': trial.suggest_float('subsample', 0.6, 1.0),
+                'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0),
+                'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 10.0, log=True),
+                'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 10.0, log=True),
+            }
+            
+            # 모델 학습
+            model = lgb.LGBMClassifier(**params)
+            model.fit(
+                X_train, y_train,
+                eval_set=[(X_test, y_test)],
+                eval_metric='auc',
+                callbacks=[lgb.early_stopping(stopping_rounds=50, verbose=False)]
+            )
+            
+            # AUC-ROC 점수 반환
+            from sklearn.metrics import roc_auc_score
+            y_pred_proba = model.predict_proba(X_test)[:, 1]
+            auc = roc_auc_score(y_test, y_pred_proba)
+            return auc
+        
+        # Optuna Study 실행
+        sampler = TPESampler(seed=42)
+        study = optuna.create_study(direction='maximize', sampler=sampler)
+        study.optimize(objective, n_trials=n_trials, show_progress_bar=True)
+        
+        print(f"\n{'='*60}")
+        print(f"Optuna 튜닝 완료!")
+        print(f"{'='*60}")
+        print(f"Best AUC-ROC: {study.best_value:.4f}")
+        print(f"Best Parameters:")
+        for key, value in study.best_params.items():
+            print(f"  {key}: {value}")
+        
+        # 최적 파라미터로 최종 모델 학습
+        best_params = study.best_params
+        best_params.update({
+            'objective': 'binary',
+            'metric': 'auc',
+            'verbosity': -1,
+            'boosting_type': 'gbdt',
+            'random_state': 42
+        })
+        
+        lgbm = lgb.LGBMClassifier(**best_params)
+    else:
+        # 기본 파라미터 사용
+        print("\n기본 파라미터로 학습 진행...")
+        lgbm = lgb.LGBMClassifier(
+            random_state=42,
+            verbose=-1
+        )
+    
+    # 최종 학습
     lgbm.fit(X_train, y_train)
     y_pred = lgbm.predict(X_test)
     y_pred_proba = lgbm.predict_proba(X_test)[:, 1]
     
+    # 성능 평가
     acc = accuracy_score(y_test, y_pred)
     conf = confusion_matrix(y_test, y_pred)
     clf_report = classification_report(y_test, y_pred)
 
+    print(f"\n{'='*60}")
+    print("최종 모델 성능")
+    print(f"{'='*60}")
     print("accuracy : ", acc)
     print("conf :", conf)
     print("report :", clf_report)
@@ -199,6 +277,13 @@ def train_model(df):
         pickle.dump(X_train.columns.tolist(), f)
     print(f"Feature 컬럼 저장 완료: {feature_cols_path}")
     
+    # 최적 파라미터 저장 (Optuna 사용 시)
+    if use_optuna:
+        params_path = os.path.join(model_dir, 'best_params.pkl')
+        with open(params_path, 'wb') as f:
+            pickle.dump(study.best_params, f)
+        print(f"최적 파라미터 저장 완료: {params_path}")
+    
     return lgbm
 
 if __name__ == "__main__":
@@ -212,5 +297,7 @@ if __name__ == "__main__":
         print(f"Preprocessing completed. Final shape: {processed_data.shape}")
         
         # 3. 학습 및 평가
-        model = train_model(processed_data)
+        # use_optuna=True로 설정하면 하이퍼파라미터 튜닝 수행
+        # use_optuna=False로 설정하면 기본 파라미터로 학습
+        model = train_model(processed_data, use_optuna=True, n_trials=50)
         print("\n학습 및 모델 저장이 완료되었습니다.")
