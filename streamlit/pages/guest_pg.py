@@ -92,7 +92,8 @@ def resize_and_crop_image(image_bytes, target_aspect_ratio=(16, 9)):
         return None 
 
 #--- 예측 함수 ---
-sys.path.append(os.path.dirname(current_dir))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(PROJECT_ROOT)
 from modeling import predict
 def pred(row):
     
@@ -100,20 +101,21 @@ def pred(row):
     cb_data_name = cb_data['name']
 
 
-    cb_data =cb_data.drop(columns=['is_canceled','name'])
-    cb_data,clients_id = predict.preprocess_test_data(cb_data)
-
-    feature_cols_path = os.path.join(current_dir, '..', 'model', 'feature_columns.pkl')
+    cb_data_for_prediction  =cb_data.drop(columns=['is_canceled','country', 'assigned_room_type','booking_changes','days_in_waiting_list','reservation_status','reservation_status_date'])
+    processed_features = predict.preprocess_test_data(cb_data_for_prediction )
+    st.write(processed_features.head())
+    
+    feature_cols_path = os.path.join(PROJECT_ROOT,'model', 'feature_columns.pkl')
     feature_cols_path = os.path.normpath(feature_cols_path)
 
     with open(feature_cols_path, "rb") as f:
         feature_columns = pickle.load(f)
     
-    
+    st.write(feature_columns)
 
-    cb_data = predict.align_test_features(cb_data,feature_columns)
+    cb_data = predict.align_test_features(processed_features,feature_columns)
     
-    model_path = os.path.join(current_dir, '..', 'model', 'lgbm_model.txt')
+    model_path = os.path.join(PROJECT_ROOT,'model', 'lgbm_model.txt')
     model_path = os.path.normpath(model_path)
 
     lgb_model = predict.load_model()
@@ -121,7 +123,7 @@ def pred(row):
             
     predictions, probabilities = predict.predict_test_data(lgb_model, cb_data)
     
-    output_path = os.path.join(current_dir, '..', 'data', 'test_predictions.csv')
+    output_path = os.path.join(PROJECT_ROOT,'data', 'test_predictions.csv')
     output_path = os.path.normpath(output_path)
     
     result_df = pd.DataFrame({
@@ -130,7 +132,7 @@ def pred(row):
             'probability_no_cancel': 1 - probabilities,
             'probability_cancel': probabilities
         })
-    result_df.to_csv(output_path,mode='a',index=False)
+    result_df.to_csv(output_path,mode='a',index=False,encoding='utf-8-sig')
 
 
 # 페이지 설정 (전체 너비 사용)
