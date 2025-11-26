@@ -19,7 +19,7 @@ if streamlit_app_dir not in sys.path:
 
 # --- 유틸리티 함수 임포트 ---
 from admin_util import visualize_customer_data, get_customer_prediction, display_prediction_results
-from utils import logout, check_access, display_access_denied_message_once
+from utils import logout, check_access, display_access_denied_message_once # logout 함수가 이미 임포트되어 있습니다.
 
 current_page_name = os.path.basename(__file__)
 display_access_denied_message_once(current_page_name)
@@ -197,17 +197,13 @@ def generate_charts(filtered_data, dashboard_title):
         st.plotly_chart(fig_c3, use_container_width=True)
     with col_c4:
         st.subheader("C-4. 객실 타입 사용 현황 (상위 4개 + 기타)")
-
         top_4_rooms = filtered_data['reserved_room_type'].value_counts().nlargest(4).index.tolist()
-
         data_for_pie = filtered_data[['reserved_room_type']].copy()
-        # --- 오류 수정 부분: np.where의 첫 번째 인자 수정 ---
         data_for_pie['room_group'] = np.where(
-            data_for_pie['reserved_room_type'].isin(top_4_rooms), # 여기를 이렇게 수정합니다.
+            data_for_pie['reserved_room_type'].isin(top_4_rooms),
             data_for_pie['reserved_room_type'],
             '기타 (Other)'
         )
-        # ----------------------------------------------------
         room_counts = data_for_pie['room_group'].value_counts().reset_index()
         room_counts.columns = ['Reserved Room Group', 'Count']
         fig_c4 = px.pie(room_counts, names='Reserved Room Group', values='Count', title='전체 예약 건수 대비 객실 타입별 점유율', color_discrete_sequence=px.colors.qualitative.Pastel, height=450)
@@ -221,6 +217,7 @@ def generate_charts(filtered_data, dashboard_title):
 
 # -------------------- 3. 호텔 통합 분석 필터 UI (dashboard_admin.py에서 가져옴) --------------------
 def get_full_dashboard_filtered_data(data):
+    # 이 함수는 사이드바에 필터 UI를 렌더링하고, 필터링된 데이터를 반환합니다.
     st.sidebar.header("통합 분석 필터 (City + Resort)")
     hotel_types = sorted(data['hotel'].unique())
     selected_hotels = st.sidebar.multiselect("호텔 유형 선택", hotel_types, default=hotel_types, key="admin_pg_hotel_type_filter_full")
@@ -235,6 +232,7 @@ def get_full_dashboard_filtered_data(data):
 
 # -------------------- 4. City Hotel 전용 분석 필터 UI (dashboard_admin.py에서 가져옴) --------------------
 def get_city_hotel_filtered_data(data):
+    # 이 함수는 사이드바에 필터 UI를 렌더링하고, 필터링된 데이터를 반환합니다.
     st.sidebar.header("City Hotel 전용 필터")
     city_data = data[data['hotel'] == 'City Hotel'].copy()
 
@@ -251,31 +249,34 @@ def get_city_hotel_filtered_data(data):
 
 
 # -------------------- 통합된 사이드바 UI 및 기능 선택 --------------------
+# 하나의 with st.sidebar 블록으로 모든 사이드바 요소를 정의
 with st.sidebar:
-    st.markdown(f"## 환영합니다, {st.session_state.username}님! 👋")
-    st.write(f"역할: {st.session_state.role}")
-    if st.button("로그아웃", type="secondary", key="logout_admin_pg_unified"):
-        logout()
-    st.markdown("---") # 구분선
 
-    st.header("관리자 기능 선택")
-    admin_function_selection = st.radio(
-        "기능 선택",
-        ['개별 고객 분석', '호텔 통계 대시보드'],
-        key="admin_function_selector"
-    )
+    # 기능 선택 버튼들 (클릭 시 세션 상태 변경 및 reru)
+    # 현재 페이지는 admin_pg.py 이므로 링크로 둘 필요 없이 버튼으로 기능 전환
+    if st.button("👤 개별 고객 분석", key="admin_pg_customer_analysis"):
+        st.session_state.current_admin_view = '개별 고객 분석'
+        st.rerun()
+
+    if st.button("📊 호텔 통계 대시보드", key="admin_pg_dashboard_analysis"):
+        st.session_state.current_admin_view = '호텔 통계 대시보드'
+        st.rerun()
+
     st.markdown("---")
+    
+    # --- 로그아웃 버튼 (utils.logout 함수를 호출) ---
+    if st.button("로그아웃", type="secondary", key="logout_admin_pg_unified"):
+        logout() # utils.py에서 가져온 logout 함수를 호출합니다.
 
-    # 모든 페이지 링크를 admin_function_selection 아래로 이동
-    st.subheader("페이지 이동")
-    st.page_link("main.py", label="🏠 관리자 홈")
-    st.page_link("pages/admin_pg.py", label="⚙️ 통합 관리자 페이지 (현재)")
 
+# 초기 뷰 설정 (세션 상태 활용)
+if 'current_admin_view' not in st.session_state:
+    st.session_state.current_admin_view = '개별 고객 분석' # 기본값
 
 # -------------------- 메인 컨텐츠 영역 렌더링 --------------------
 pio.templates.default = "plotly_white"
 
-if st.session_state.get("admin_function_selector", '개별 고객 분석') == '개별 고객 분석':
+if st.session_state.current_admin_view == '개별 고객 분석':
     st.title("🏨 개별 고객 정보 분석")
     st.markdown("---")
 
@@ -336,14 +337,17 @@ else: # 호텔 통계 대시보드
         st.error("대시보드 데이터를 로드하지 못했습니다.")
         st.stop() # 데이터 로드 실패 시 페이지 실행 중단
 
+    st.title("📊 호텔 통계 대시보드")
+    st.markdown("---")
+
     # 대시보드 유형 선택 라디오 버튼 (사이드바에 렌더링)
-    st.sidebar.markdown("---") # 구분선
     st.sidebar.header("대시보드 유형 선택")
     dashboard_type_selection = st.sidebar.radio(
         "유형",
         ['통합 분석 (City + Resort)', 'City Hotel 전용 분석'],
-        key="dashboard_type_radio"
+        key="admin_pg_dashboard_type_radio" # key를 명확히 구분
     )
+    st.sidebar.markdown("---") # 대시보드 필터와 구분되는 선 추가
 
     # 선택된 대시보드 유형에 따라 필터링 및 차트 생성
     if dashboard_type_selection == '통합 분석 (City + Resort)':
