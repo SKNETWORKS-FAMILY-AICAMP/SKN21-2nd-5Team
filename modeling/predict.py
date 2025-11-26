@@ -53,7 +53,7 @@ def preprocess_test_data(df):
     cat_cols_for_ohe = df_proc.select_dtypes(include=['object', 'category']).columns
     df_proc = pd.get_dummies(df_proc, columns=cat_cols_for_ohe, drop_first=True)
     
-    return df_proc
+    return df_proc,client_ids
 
 def load_model():
     """

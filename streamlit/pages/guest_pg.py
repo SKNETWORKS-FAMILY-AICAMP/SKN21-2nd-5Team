@@ -99,11 +99,11 @@ def pred(row):
     
     cb_data = row.copy()
     cb_data_name = cb_data['name']
+    cb_data['client_id'] = cb_data['name']
 
-
-    cb_data_for_prediction  =cb_data.drop(columns=['is_canceled','country', 'assigned_room_type','booking_changes','days_in_waiting_list','reservation_status','reservation_status_date'])
-    processed_features = predict.preprocess_test_data(cb_data_for_prediction )
-    st.write(processed_features.head())
+    cb_data_for_prediction  =cb_data.drop(columns=['name','is_canceled','country', 'assigned_room_type','booking_changes','days_in_waiting_list','reservation_status','reservation_status_date'])
+    processed_features = predict.preprocess_test_data(cb_data_for_prediction)
+    
     
     feature_cols_path = os.path.join(PROJECT_ROOT,'model', 'feature_columns.pkl')
     feature_cols_path = os.path.normpath(feature_cols_path)
@@ -111,7 +111,7 @@ def pred(row):
     with open(feature_cols_path, "rb") as f:
         feature_columns = pickle.load(f)
     
-    st.write(feature_columns)
+    
 
     cb_data = predict.align_test_features(processed_features,feature_columns)
     
