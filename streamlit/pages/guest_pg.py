@@ -440,7 +440,7 @@ if st.button("✅ 저장", type="primary"):
         
         room_type_code_for_csv = room_type_filter.split(' ')[0]
 
-        avg_price_per_night = 0 # 이 예제에서는 고정값 또는 계산 로직이 없으므로 0으로 설정
+        avg_price_per_night = float(room_type_filter.split('$')[1].strip())
         
         # --- 고객 요청 사항 처리 ---
         # 비어있지 않은 요청 텍스트만 추출
