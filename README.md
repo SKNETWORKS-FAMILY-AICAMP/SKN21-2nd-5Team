@@ -6,7 +6,10 @@
 3️⃣ 기술 스택 및 파일 구조<br>
 4️⃣ 데이터 전처리<br>
 5️⃣ 모델 구현<br>
-6️⃣ Application 구현
+6️⃣ Application 구현<br>
+7️⃣ 기대효과<br>
+8️⃣ 실행방법<br>
+📶 한줄회고
 <div align="center">
 
 
