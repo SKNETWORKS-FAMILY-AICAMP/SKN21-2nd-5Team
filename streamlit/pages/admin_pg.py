@@ -19,7 +19,7 @@ if streamlit_app_dir not in sys.path:
 
 # --- 유틸리티 함수 임포트 ---
 from admin_util import visualize_customer_data, get_customer_prediction, display_prediction_results
-from utils import logout, check_access, display_access_denied_message_once # logout 함수가 이미 임포트되어 있습니다.
+from utils import logout, check_access, display_access_denied_message_once 
 
 current_page_name = os.path.basename(__file__)
 display_access_denied_message_once(current_page_name)

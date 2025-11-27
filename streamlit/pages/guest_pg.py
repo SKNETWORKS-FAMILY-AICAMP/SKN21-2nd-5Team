@@ -4,12 +4,12 @@ import os
 import io
 from PIL import Image
 import pandas as pd
-from utils import logout, check_access, display_access_denied_message_once # logout 함수가 이미 임포트되어 있습니다.
+from utils import logout, check_access, display_access_denied_message_once 
 import sys
 import lightgbm as lgb
 import pickle
 
-current_page_name = os.path.basename(__file__) # 현재 페이지 스크립트 이름 (예: "front_josh.py")
+current_page_name = os.path.basename(__file__) # 현재 페이지 스크립트 이름 
 
 # 세션 상태에 저장된 접근 거부 메시지가 있다면 표시
 display_access_denied_message_once(current_page_name)
@@ -20,7 +20,7 @@ check_access(["admin", "guest"], current_page_name) # 이 페이지는 "admin" �
 
 # --- 이미지 파일의 기본 경로 설정 ---
 current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# CSV_FILE_PATH를 current_dir과 같은 위치에 두는 것이 권장됩니다.
+
 CSV_FILE_PATH = os.path.join(current_dir, '..', 'data',"hotel_bookings_data.csv") 
 IMAGE_BASE_DIR = os.path.join(current_dir, '..', 'data', 'images') # 이미지 폴더 경로는 그대로
 
@@ -458,7 +458,7 @@ if st.button("✅ 예약", type="primary"):
 
         data = {
             'name': st.session_state.customer_name, # 고객 이름 추가
-            'hotel': 'City Hotel', 
+            'hotel': 'City Hotel', # 기본값
             'is_canceled': 0, 
             'lead_time': lead_time,
             'arrival_date_year': arrival_year,
@@ -471,27 +471,29 @@ if st.button("✅ 예약", type="primary"):
             'children': children,
             'babies': infants,
             'meal': meal_plan,
-            'country': 'KOR', 
-            'market_segment': 'Online TA', 
-            'distribution_channel': 'TA/TO', 
-            'is_repeated_guest': 0, 
-            'previous_cancellations': 0, 
-            'previous_bookings_not_canceled': 0, 
+            'country': 'KOR', # 국내 기준(기본값)
+            'market_segment': 'Online TA', # 웹에서 예약하므로 onlie 기본값
+            'distribution_channel': 'TA/TO',  # 웹에서 예약하므로 TA/TO 기본값
+            'is_repeated_guest': 0, # 과거 기록 x
+            'previous_cancellations': 0,  # 과거 기록 x
+            'previous_bookings_not_canceled': 0, # 과거 기록 x
             'reserved_room_type': room_type_code_for_csv,
             'assigned_room_type': room_type_code_for_csv, 
-            'booking_changes': 0, 
+            'booking_changes': 0, # 과거기록 x
             'deposit_type': 'No Deposit', 
             'agent': 0, # Agent ID가 주어지지 않았으므로 0
             'company': 0, # Company ID가 주어지지 않았으므로 0
-            'days_in_waiting_list': 0, 
+            'days_in_waiting_list': 0, # 예약이 즉시 처리되므로 0
             'customer_type': 'Transient', # 기본값
-            'adr': avg_price_per_night,
+            'adr': avg_price_per_night, 
             'required_car_parking_spaces': required_parking_spaces,
             'total_of_special_requests': filtered_requests_count, # 변경된 부분: 실제 유효한 요청 수
             'reservation_status': 'New Input', 
             'reservation_status_date': datetime.date.today().strftime('%Y-%m-%d'),
             'customer_special_requests': customer_special_requests_str # 추가된 고객 요청 사항
         }
+
+        # 일단 시연기준으로 임의값들 입력 데이터베이스 구축한다면 더 많은 정보 입력가능
 
         df_new_row = pd.DataFrame([data], columns=column_names)
         
